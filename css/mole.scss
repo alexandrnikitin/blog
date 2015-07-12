@@ -62,7 +62,7 @@ img {
     width: 150px;
     text-align: right;
     text-transform: uppercase;
-    color: #fd7f05
+    color: #97D274
 }
 @media (max-width: 900px) {
     .content .date {
@@ -146,12 +146,24 @@ img {
     text-align: center
 }
 .hero h1 {
-  font-weight: bold;
+    font-weight: bold;
     background-color: rgba(151, 210, 116, 0.9);
     display: inline-block;
     padding: 0px 20px;
     line-height: 60px;
     margin-top: 90px
+}
+.title h1 {
+  text-align: center;
+  margin: auto;
+  position: relative;
+    font-weight: bold;
+    background-color: rgba(151, 210, 116, 0.9);
+    width: 50%;
+    display: block;
+    padding: 0px 40px;
+    line-height: 60px;
+    margin-top: 40px
 }
 .recent-posts {
     margin-bottom: 5rem;
@@ -253,7 +265,8 @@ h5,
 h6,
 b,
 strong {
-    color: #fd7f05;
+    color: #97D274
+;
     font-weight: normal;
     font-family: 'Roboto Slab', serif;
 }
@@ -315,7 +328,7 @@ header h1.compressed {
     transition: border-color 0.2s ease
 }
 .content a:hover {
-    border-color: #fd7f05
+    border-color: #97D274
 }
 footer {
     font-family: 'Roboto Slab', serif;
