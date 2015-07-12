@@ -5,19 +5,20 @@ layout: default
 <div class="home">
 
   <div class="posts">
-    {% for post in site.posts %}
-      <div class="post py3">
-        <p class="post-meta">{{ post.date | date: "%b %-d, %Y" }}</p>
-        <a href="{{ post.url | prepend: site.baseurl }}" class="post-link"><h3 class="h1 post-title">{{ post.title }}</h3></a>
-        <p class="post-summary">
-          {% if post.summary %}
-            {{ post.summary }}
-          {% else %}
-            {{ post.excerpt }}
-          {% endif %}
-        </p>
-      </div>
-    {% endfor %}
-  </div>
+    <ul>
+
+      {% for post in site.posts %}
+      <li>
+        <a href="{{ post.url | prepend: site.baseurl }}" class="post-link">
+          <div>
+            <span class="post-title">{{ post.title }}</span>
+            <span class="post-date">{{ post.date | date: "%B %-d, %Y" }}</span>
+          </div>
+        </a>
+      </li>
+      {% endfor %}
+
+    </ul>
+  <div>
 
 </div>

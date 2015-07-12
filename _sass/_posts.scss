@@ -1,23 +1,38 @@
 
 .posts {
   margin: 0;
+  padding: 0 2rem
 }
 
-.posts .post {
-  margin-bottom: 0.75em;
-  border-bottom: thin solid #f3f3f3;
+.posts ul {
+    margin-bottom: 5rem;
+    padding-left: 0
 }
 
-.posts .post:last-child {
-  border-bottom: none;
-  margin-bottom: .375em;
-  padding-bottom: 0;
+.posts li {
+    margin-bottom: 5px;
+    list-style-type: none
+}
+.posts li div {
+    padding: 5px 0
 }
 
 .post-link .post-title {
   margin-top: 0;
-  font-weight: 600;
+  font-weight: bold;
   color: #333;
+}
+
+.post-link .post-date {
+  float: right;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 1);
+  line-height: 24px
+}
+@media (max-width: 57em) {
+  .post-link .post-date {
+      display: none
+  }
 }
 
 .post-footer {
