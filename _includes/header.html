@@ -1,14 +1,16 @@
-<header class="site-header px2 px-responsive">
-  <div class="mt2 wrap">
-    <div class="measure">
-      <a href="{{ site.baseurl }}/" class="site-title">{{ site.title }}</a>
-      <nav class="site-nav">
-        {% include navigation.html %}
-      </nav>
-      <div class="clearfix"></div>
-      {% if site.show_social_icons %}
-        {% include social_links.html %}
-      {% endif %}
-    </div>
+<header>
+
+  <div class="hero">
+      <h1>{{ site.title }}</h1>
   </div>
+
 </header>
+
+<div class="container menu">
+  <ul>
+    <li><a href="{{ site.baseurl }}/about/">About</a></li>
+    <li><a href="{{ site.baseurl }}/">Posts</a></li>
+  </ul>
+
+  <hr>
+</div>
