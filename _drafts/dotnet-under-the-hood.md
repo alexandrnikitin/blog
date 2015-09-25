@@ -130,6 +130,8 @@ MT                Field          Offset    Type          VT Attr     Value Name
 00007fffecf03980  4000001        8         System.Int32  1 instance  _myField
 ```
 
+### Generics under the hood
+
 ##### Generic class example
 Let's take a look at how generics affect our `Method Table`s and `EEClass`es. Let's take a simple generic class:
 ```csharp
@@ -163,10 +165,10 @@ After compilation we get:
 The name has type arity "`1" showing the number of generic types and `!T` instead of type. It's a template that tells JIT that the type is generic and unknown at the compile time and will be defined later. Miracle! CLR knows about generics :relieved:
 
 Let's create an instance of our generic with type `object` and take a look at the Method Table:
-```
+```csharp
 var myObject = new MyGenericClass<object>();
-
-
+```
+```
 0:003> !DumpMT -md 00007fff8e754368
 EEClass:         00007fff8e862510
 Module:          00007fff8e752fc8
@@ -209,29 +211,164 @@ MT                Field          Offset  Type            VT Attr       Value Nam
 ```
 The name with the same mystic `System.__Canon` and type of field is also `System.__Canon`.
 
-Let's create an instance with string type. The name with string type but methods have the same strange signature with `System.__Canon`. If we take a look more closer then we'll se that addresses are the same as in previous type. The same in EEClass.
+Let's create an instance with string type:
+```csharp
+var myString = new MyGenericClass<string>();
+```
+```
+0:003> !DumpMT -md 00007fff8e754400
+EEClass:         00007fff8e862510
+Module:          00007fff8e752fc8
+Name:            GenericsUnderTheHood.MyGenericClass`1[[System.String, mscorlib]]
+mdToken:         0000000002000003
+File:            C:\Projects\my\GenericsUnderTheHood\GenericsUnderTheHood\bin\Debug\GenericsUnderTheHood.exe
+BaseSize:        0x18
+ComponentSize:   0x0
+Slots in VTable: 6
+Number of IFaces in IFaceMap: 0
+--------------------------------------
+MethodDesc Table
+Entry       MethodDesc    JIT Name
+00007fffecc86300 00007fffec8380e8 PreJIT System.Object.ToString()
+00007fffeccce760 00007fffec8380f0 PreJIT System.Object.Equals(System.Object)
+00007fffeccd1ad0 00007fffec838118 PreJIT System.Object.GetHashCode()
+00007fffeccceb50 00007fffec838130 PreJIT System.Object.Finalize()
+00007fff8e870210 00007fff8e754280    JIT GenericsUnderTheHood.MyGenericClass`1[[System.__Canon, mscorlib]]..ctor()
+00007fff8e75c098 00007fff8e754278   NONE GenericsUnderTheHood.MyGenericClass`1[[System.__Canon, mscorlib]].MyMethod()
+```
+ The name with string type but methods have the same strange signature with `System.__Canon`. If we take a look more closer then we'll se that addresses are the same as in previous example with `object` type. So the `EEClass` is the same.
 
-Let's create and instance of value type. Name with int type, signature too. EEClass is typed with int too.
+Let's create and instance of value type.
+```csharp
+var myInt = new MyGenericClass<int>();
+```
+```
+0:003> !DumpMT -md 00007fff8e7544c0
+EEClass:         00007fff8e862628
+Module:          00007fff8e752fc8
+Name:            GenericsUnderTheHood.MyGenericClass`1[[System.Int32, mscorlib]]
+mdToken:         0000000002000003
+File:            C:\Projects\my\GenericsUnderTheHood\GenericsUnderTheHood\bin\Debug\GenericsUnderTheHood.exe
+BaseSize:        0x18
+ComponentSize:   0x0
+Slots in VTable: 6
+Number of IFaces in IFaceMap: 0
+--------------------------------------
+MethodDesc Table
+Entry       MethodDesc    JIT Name
+00007fffecc86300 00007fffec8380e8 PreJIT System.Object.ToString()
+00007fffeccce760 00007fffec8380f0 PreJIT System.Object.Equals(System.Object)
+00007fffeccd1ad0 00007fffec838118 PreJIT System.Object.GetHashCode()
+00007fffeccceb50 00007fffec838130 PreJIT System.Object.Finalize()
+00007fff8e870260 00007fff8e7544b8    JIT GenericsUnderTheHood.MyGenericClass`1[[System.Int32, mscorlib]]..ctor()
+00007fff8e75c0c0 00007fff8e7544b0   NONE GenericsUnderTheHood.MyGenericClass`1[[System.Int32, mscorlib]].MyMethod()
+```
+Name with `int` type, signature too. The `EEClass` is typed with `int` too.
+```
+0:003> !DumpClass 00007fff8e862628
+Class Name:      GenericsUnderTheHood.MyGenericClass`1[[System.Int32, mscorlib]]
+mdToken:         0000000002000003
+File:            C:\Projects\my\GenericsUnderTheHood\GenericsUnderTheHood\bin\Debug\GenericsUnderTheHood.exe
+Parent Class:    00007fffec824908
+Module:          00007fff8e752fc8
+Method Table:    00007fff8e7544c0
+Vtable Slots:    4
+Total Method Slots:  6
+Class Attributes:    100001
+Transparency:        Critical
+NumInstanceFields:   1
+NumStaticFields:     0
+MT    Field   Offset                 Type VT     Attr            Value Name
+00007fffecf03980  4000002        8         System.Int32  1 instance           _myField
+```
 
-So how does it work then? Value type do not share anything and have their own method tables, EEClasses, methods. Reference types share code of methods and EEClass between each other. But they have their own Method tables. `System.__Canon` is an internal type. Its main goal to tell JIT that the type will be defined during Runtime.
+##### Under the hood
+So how does it work then? Value types do not share anything and have their own `Method Tables`, `EEClasses` and method code. Reference types share code of methods and `EEClass` between each other but they have their own `Method Tables`. So `Method Table` uniquely describes a type. `System.__Canon` is an internal type. Its main goal to tell JIT that the type will be defined during Runtime.
 
 What means does CLR have to do that?
 Classloader - it goes through all hierarchy of objects and their methods and tries what will be called. Obviously it's the slowest way to do it.
 So CLR adds cache for a type. then...
-And the fastest that possible? A slot in method table.
-One important nore: CLR optimizes call of generics from your method, but not the generics methods itselves. i.e. It add slots to your class but not in generic class.
-And the performance of each method.
+And the fastest that possible? A slot in Method Table.
+One important note: CLR optimizes a call of a generic method in __your__ method, not the generic method itself. I.e. it adds slots to your class `Method Table` not to generic class `Method Table`.
+TODO Add the performance of each method.
 
-And the dessert. The most interesting part imo. I work on high-load low latency and other fancy systems. At that time I worked on Real Time Bidding system that hanlded ~500k RPS with latencies below 5ms. After some changes? we encountered with performance drawdown in one of our modules that parsed user agent and extracted some data from it. I maximally simplified the code that reproduces the issue.
-We have a generic class which has a generic field. In ctr we call generic method. in Method Run too. And an empty class derived from it.
-And a benchmark. And derived type 3.5 times slower.
-Who can explain it??
-I asked a question on SO. A lot of people appeared and started to teach me how to write benchmarks. Meanwhile on RSDN an interesting workaround was found. Just add two empty methods. My first thoughts were like WAT?? What programming is it when you ad two empty methods and it flies?? Then i got an answer from Microsoft with the same workaround and saying that the thing is in JIT heuristic algorithm. I relieved. Then sources of CLR were opened. Then I got an explanation from one of CLR core developers who explained everything in details and admitted that it's a bug in JITter. Here's the fix. They didn't touch the comment which says the right thing that wasn't done.
+### The dessert
+The most interesting part for me. I work on high-load low latency and other fancy-schmancy systems. At that time I worked on the [Real Time Bidding][RTB] system that handled ~500K RPS with latencies below 5ms. After some changes we encountered with the performance degradation in one of our modules that parsed User-Agent header and extracted some data from it. I simplified the code as much as I could to reproduce the issue:
+```csharp
+public class BaseClass<T>
+{
+    private List<T> _list = new List<T>();
+
+    public BaseClass()
+    {
+        Enumerable.Empty<T>();
+        // or Enumerable.Repeat(new T(), 10);
+        // or even new T();
+        // or foreach (var item in _list) {}
+    }
+
+    public void Run()
+    {
+        for (var i = 0; i < 8000000; i++)
+        {
+            if (_list.Any())
+            // or if (_list.Count() > 0)
+            // or if (_list.FirstOrDefault() != null)
+            // or if (_list.SingleOrDefault() != null)
+            // or other IEnumerable<T> method
+            {
+                return;
+            }
+        }
+    }
+}
+
+public class DerivedClass : BaseClass<object>
+{
+}
+```
+We have a generic class `BaseClass<T>` which has a generic field and a method `Run` to perform some logic. In constructor we call a generic method and in method `Run()` too. And we have an empty class `DerivedClass` which is inherited from the `BaseClass<T>`.
+And a benchmark:
+```csharp
+public class Program
+{
+    public static void Main()
+    {
+        Measure(new DerivedClass());
+        Measure(new BaseClass<object>());
+    }
+
+    private static void Measure(BaseClass<object>> baseClass)
+    {
+        var sw = Stopwatch.StartNew();
+        baseClass.Run();
+        sw.Stop();
+        Console.WriteLine(sw.ElapsedMilliseconds);
+    }
+}
+```
+And the empty `DerivedClass` 3.5 times slower. Can you explain it??
+I asked [a question on SO][SO]. A lot of developers appeared and started to teach me how to write benchmarks :laughing: Meanwhile [on RSDN][RSDN] an interesting workaround was found: "Just add two empty methods":
+```
+public class BaseClass<T>
+{
+...
+    public void Method1()
+    {
+    }
+
+    public void Method2()
+    {
+    }
+...
+}
+```
+My first thoughts were like WAT?? What programming is it when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the thing is in JIT heuristic algorithm. I felt relieve. No more magic there. Then sources of CLR were opened and I raise [an issue on github][github-issue]. Then I got [an explanation from @cmckinsey one of CLR engineers/managers][github-explanation] who explained everything in details and admitted that it's a bug in JITter. [Here's the fix][github-fix]. Take a look at the comment above the changed lines - he didn't touch the comment which was right. That rare moment :open_mouth:
 
 
 ### Moral.
-You code is slow? Just add two empty methods. Just kidding. There's no such. Everyone has This bug
-I just was lucky to find it and pushed CLR team to fix it. Actually .NET is being done by developer as you and me. They also make bugs. And that's normal.
+Is your code slow? Just add two empty methods :laughing:
+Everyone had this bug for years. I just was lucky to find it and pushed and asked CLR team to fix it. Actually .NET is being done by developer as you and me. They also make bugs. And that's normal.
 Just for fun. If there wouldn't be an interest then nothing would happen.
 
 
@@ -244,3 +381,9 @@ Just for fun. If there wouldn't be an interest then nothing would happen.
   [SOS]: https://msdn.microsoft.com/en-us/library/bb190764(v=vs.110).aspx
   [SOSex]: http://www.stevestechspot.com/default.aspx
   [WinDbg]: http://www.windbg.org/
+  [RTB]: https://en.wikipedia.org/wiki/Real-time_bidding
+  [SO]: http://stackoverflow.com/questions/27176159/performance-type-derived-from-generic
+  [MicrosoftConnect]: https://connect.microsoft.com/VisualStudio/feedback/details/1041830/performance-type-derived-from-generic
+  [github-issue]: https://github.com/dotnet/coreclr/issues/55
+  [github-fix]: https://github.com/dotnet/coreclr/pull/618/files
+  [github-explanation]: https://github.com/dotnet/coreclr/issues/55#issuecomment-89026823
