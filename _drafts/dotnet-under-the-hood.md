@@ -61,4 +61,14 @@ And the fastest that possible? A slot in method table.
 One important nore: CLR optimizes call of generics from your method, but not the generics methods itselves. i.e. It add slots to your class but not in generic class.
 And the performance of each method.
 
-And the dessert.
+And the dessert. The most interesting part imo. I work on high-load low latency and other fancy systems. At that time I worked on Real Time Bidding system that hanlded ~500k RPS with latencies below 5ms. After some changes? we encountered with performance drawdown in one of our modules that parsed user agent and extracted some data from it. I maximally simplified the code that reproduces the issue.
+We have a generic class which has a generic field. In ctr we call generic method. in Method Run too. And an empty class derived from it.
+And a benchmark. And derived type 3.5 times slower.
+Who can explain it??
+I asked a question on SO. A lot of people appeared and started to teach me how to write benchmarks. Meanwhile on RSDN an interesting workaround was found. Just add two empty methods. My first thoughts were like WAT?? What programming is it when you ad two empty methods and it flies?? Then i got an answer from Microsoft with the same workaround and saying that the thing is in JIT heuristic algorithm. I relieved. Then sources of CLR were opened. Then I got an explanation from one of CLR core developers who explained everything in details and admitted that it's a bug in JITter. Here's the fix. They didn't touch the comment which says the right thing that wasn't done.
+
+
+### Moral.
+You code is slow? Just add two empty methods. Just kidding. There's no such. Everyone has This bug
+I just was lucky to find it and pushed CLR team to fix it. Actually .NET is being done by developer as you and me. They also make bugs. And that's normal.
+Just for fun. If there wouldn't be an interest then nothing would happen.
