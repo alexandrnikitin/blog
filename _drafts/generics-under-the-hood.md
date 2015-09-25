@@ -162,7 +162,7 @@ After compilation we get:
     ...
 }
 ```
-The name has type arity "`1" showing the number of generic types and `!T` instead of type. It's a template that tells JIT that the type is generic and unknown at the compile time and will be defined later. Miracle! CLR knows about generics :relieved:
+The name has type arity "1" showing the number of generic types and `!T` instead of type. It's a template that tells JIT that the type is generic and unknown at the compile time and will be defined later. Miracle! CLR knows about generics :relieved:
 
 Let's create an instance of our generic with type `object` and take a look at the Method Table:
 ```csharp
@@ -349,7 +349,7 @@ public class Program
 ```
 And the empty `DerivedClass` 3.5 times slower. Can you explain it??
 I asked [a question on SO][SO]. A lot of developers appeared and started to teach me how to write benchmarks :laughing: Meanwhile [on RSDN][RSDN] an interesting workaround was found: "Just add two empty methods":
-```
+```csharp
 public class BaseClass<T>
 {
 ...
@@ -363,14 +363,13 @@ public class BaseClass<T>
 ...
 }
 ```
-My first thoughts were like WAT?? What programming is it when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the thing is in JIT heuristic algorithm. I felt relieve. No more magic there. Then sources of CLR were opened and I raise [an issue on github][github-issue]. Then I got [an explanation from @cmckinsey one of CLR engineers/managers][github-explanation] who explained everything in details and admitted that it's a bug in JITter. [Here's the fix][github-fix]. Take a look at the comment above the changed lines - he didn't touch the comment which was right. That rare moment :open_mouth:
+My first thoughts were like WAT?? What programming is that when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the thing is in JIT heuristic algorithm. I felt relieve. No more magic there. Then sources of CLR were opened and I raise [an issue on github][github-issue]. Then I got [an explanation from @cmckinsey one of CLR engineers/managers][github-explanation] who explained everything in details and admitted that it's a bug in JITter. [Here's the fix][github-fix]. Take a look at the comment above the changed lines - he didn't touch the comment which was right. That rare moment :open_mouth:
 
 
-### Moral.
+### Moral
 Is your code slow? Just add two empty methods :laughing:
 Everyone had this bug for years. I just was lucky to find it and pushed and asked CLR team to fix it. Actually .NET is being done by developer as you and me. They also make bugs. And that's normal.
 Just for fun. If there wouldn't be an interest then nothing would happen.
-
 
   [meetup]: https://www.facebook.com/events/106836509655188/
   [slides]: http://alexandrnikitin.github.io/slides/generics-under-the-hood/#/
@@ -383,6 +382,7 @@ Just for fun. If there wouldn't be an interest then nothing would happen.
   [WinDbg]: http://www.windbg.org/
   [RTB]: https://en.wikipedia.org/wiki/Real-time_bidding
   [SO]: http://stackoverflow.com/questions/27176159/performance-type-derived-from-generic
+  [RSDN]: http://rsdn.ru/
   [MicrosoftConnect]: https://connect.microsoft.com/VisualStudio/feedback/details/1041830/performance-type-derived-from-generic
   [github-issue]: https://github.com/dotnet/coreclr/issues/55
   [github-fix]: https://github.com/dotnet/coreclr/pull/618/files
