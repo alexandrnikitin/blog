@@ -38,8 +38,27 @@ Method table is optimization! Everything that runtime needs is extracted here fr
 To take a look at how they are presented in Runtime WinDBG comes to the rescue, the great and powerful. It's a very powerful tool for debugging of any application for Windows but it has awful user interface and user experience. There are plugins: SOS (Son of Strike) from CLR team and SOSex from 3rd party developer. Son of Strike isn't just a nice name. When the CLR team was created they had informal name called "Lightning". They created a tool for debug of Runtime and called it Lightning Strike. It was a very powerful tool that could do everything in Runtime. When time came to release they limited it and called Son of Strike. Such a nice story.
 
 Let's take a simple class. It has a field and a method. If we create an instance of it and make a dump of memory then we will see our object there. and its method table.
-Pay attension to its name, some statics and table of methods. WinDBG and SOS has a problem it doesn't show some information but shows unnecessary too.
+Pay attention to its name, some statics and table of methods. WinDBG and SOS has a problem it doesn't show some information but shows unnecessary too.
 
 Let's take a loot at the EEClass
 
 Links
+
+Let's take a look at how generics affect our Method tables and EEClasses. Let's take a simple generic class and compile it. We got. The name has type arity. and !T instead of type. It's a template that tells JIT that the type is generic and will be compile in it's own way. O Miracle! CLR knows about generics.
+
+let's create an instance of our generic with type `object` and take a look at the method table. The name has parameter object but methods have strange signature. Magical `System.__Canon` appeared. EEClass. The name with `System.__Canon` and type of field is also `System.__Canon`
+
+Let's create an instance with string type. The name with string type but methods have the same strange signature with `System.__Canon`. If we take a look more closer then we'll se that addresses are the same as in previous type. The same in EEClass.
+
+Let's create and instance of value type. Name with int type, signature too. EEClass is typed with int too.
+
+So how does it work then? Value type do not share anything and have their own method tables, EEClasses, methods. Reference types share code of methods and EEClass between each other. But they have their own Method tables. `System.__Canon` is an internal type. Its main goal to tell JIT that the type will be defined during Runtime.
+
+What means does CLR have to do that?
+Classloader - it goes through all hierarchy of objects and their methods and tries what will be called. Obviously it's the slowest way to do it.
+So CLR adds cache for a type. then...
+And the fastest that possible? A slot in method table.
+One important nore: CLR optimizes call of generics from your method, but not the generics methods itselves. i.e. It add slots to your class but not in generic class.
+And the performance of each method.
+
+And the dessert.
