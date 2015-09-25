@@ -22,4 +22,7 @@ We will recall .NET memory layout and how objects lay in memory, what's Method t
 
 Yes, Java. When I developed for .NET I always thought that it's cool there, somewhere else, in another world, stack or language. That everything is interesting and easy there. E.g. when we introduce Kafka we could process millions of event easily. Or Akka-stream, that's a bomb and would solve all our streaming problems. Or hey, Scala has pattern matching... And interest took root and I moved to JVM. And move than half a year I write on Scala. I noticed that I started to curse more often, don't sleep well, come home and cry on my pillow sometimes. I don't have accustomed  things and tools anymore that I had in .NET. And generics of cause which don't exist in JVM.
 
-People say here in Lithuania: todo That means dog can get used even to gallows.
+People say here in Lithuania: todo That means dog can get used even to gallows. Ok, let's not talk about bad things.
+
+Generics in .NET. And they are awesome! Probably there's no developers who didn't use them or love them. Is there?
+They have a lot of advantages. In documentation it's written that they let you write simple maintainable code, it's even bold. They reduce code duplication. They are smart and support constraints such as class or struct, implements class or interface. They can save inheritance through co and contravariance. They improve performance, not more boxing/unboxings, no castings. And everything happens during compilation. How cool is that? But all that is not for free. Let's take a look how much they cost.
