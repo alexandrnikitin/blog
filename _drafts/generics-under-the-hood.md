@@ -2,8 +2,11 @@
 layout: post
 title: .NET generics under the hood
 date: 2015-09-25
-summary: .NET generics, memory layout and how generics affect it, under the hood, JITter bug
-categories: .NET CLR
+modified: 2015-09-25
+excerpt: About .NET memory layout and how generics affect it, how they work under the hood and a JITter bug for dessert.
+tags: [.NET, CLR]
+comments: true
+share: true
 ---
 
 _This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [slides here][slides]._
