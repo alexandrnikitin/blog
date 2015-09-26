@@ -1,13 +1,12 @@
 # Site wide configuration
 
-title:            Site Title
-locale:           en_US
-url:
-
+title: The mole is digging
+locale: en_US
+#url: "https://alexandrnikitin.github.io/blog"
 
 # Jekyll configuration
 
-permalink:   /:categories/:title/
+permalink:   /:title/
 markdown:    kramdown
 highlighter: pygments
 sass:
@@ -17,34 +16,35 @@ gems:
   - jekyll-sitemap
 
 kramdown:
+  input: GFM
   auto_ids: true
   footnote_nr: 1
   entity_output: as_char
   toc_levels: 1..6
-  use_coderay: false
+  use_coderay: true
 
 
 # Site owner
 owner:
-  name: Your Name
+  name: Alexandr Nikitin
   avatar: bio-photo.jpg
-  bio: "Describe your self."
-  email:
+  bio: "Just another bore"
+  email: nikitin.alexandr.a@gmail.com
   disqus-shortname:
-  twitter: #username
+  twitter: nikitin_a_a
   facebook: #username
   google:
     plus: #username
-    analytics:
+    analytics: UA-52186816-3
     verify:
     ad-client:
     ad-slot:
   bing-verify:
-  github: #username
-  stackoverflow: #123456/username   from a "http://stackoverflow.com/users/123456/username" link
-  linkedin: #username
+  github: alexandrnikitin
+  stackoverflow: 974487/alexandr-nikitin
+  linkedin: alexandrnikitin
   xing: #username
-  instagram: #username
+  instagram: alexandr_a_nikitin
   lastfm: #username
   tumblr: #username
   pinterest: #username
