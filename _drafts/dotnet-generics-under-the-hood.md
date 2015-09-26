@@ -9,7 +9,7 @@ comments: true
 share: true
 ---
 
-_This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [slides here][slides]._
+Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [slides here][slides].
 
 ### Intro
 
@@ -19,14 +19,17 @@ When I was developing for .NET I always thought that it's cool somewhere else, i
 
 ### Generics in .NET
 
-And they are awesome! Probably there are no developers who didn't use them or love them. Is there? They have a lot of advantages and benefits. In CLR documentation it's written that they make programming easier, it's even [bold there][coreclr-generics]. They reduce code duplication. They are smart and support constraints such as class or struct, implements class or interface. They can preserve inheritance through covariance and contravariance. They improve performance: no more boxings/unboxings, no castings. And all that happen during compilation. How cool is that?! But nothing goes for free and we'll figure out the price :wink:
+And they are awesome! Probably there are no developers who didn't use them or love them. Is there? They have a lot of advantages and benefits. In CLR documentation it's written that they **make programming easier**, yes it's [bold there][coreclr-generics]. They reduce code duplication. They are smart and support constraints such as class or struct, implements class or interface. They can preserve inheritance through covariance and contravariance. They improve performance: no more boxings/unboxings, no castings. And all that happen during compilation. How cool is that?! But nothing goes for free and we'll figure out the price :wink:
 
 ### .NET memory layout
 
 At first let's recall how objects are stored in memory. When we create an instance of an object then the following structure allocated in the heap:
-```
-var o = new object();
 
+```cs
+var o = new object();
+```
+
+```
 +----------------------+
 |     An instance      |
 +----------------------+
@@ -36,9 +39,8 @@ var o = new object();
 | FieldN               |
 +----------------------+
 ```
-Where the first element called "Header" and contains hashcode or address in the lock table. The second element contains the `Method Table` address. Next goes fields of the object. So the variable `o` is just a number (pointer) that points to the `Method Table`.
 
-And the `Method Table` is ...
+Where the first element called "Header" and contains hashcode or address in the lock table. The second element contains the `Method Table` address. Next goes fields of the object. So the variable `o` is just a number (pointer) that points to the `Method Table`. And the `Method Table` is ...
 
 ##### EEClass
 Let me start from `EEClass` :wink: `EEClass` is a class, it knows everything about the type it represents. It gives access to its data through getter and setters. It's a quite complex class which consists of [more than 2000 lines of code][EEClass] and contains other classes and structs which are also not so small. For example [`EEClassOptionalFields`][EEClassOptionalFields] that is something like a dictionary that stores optional data. Or [`EEClassPackedFields`][EEClassPackedFields] which is optimization for memory. `EEClass` stores a lot of numeric data such as number of method, fields, static methods, static fields and etc. So `EEClassPackedFields` optimizes them and cuts leading zeros and pack into one array with access by index. `EEClass` is also called "cold data". So getting back to `Method Table`.
@@ -67,7 +69,8 @@ To take a look at how they are presented in CLR [`WinDbg`][WinDbg] comes to the 
 
 ##### Plain class example
 Let's take a simple class:
-```csharp
+
+```cs
 public class MyClass
 {
     private int _myField;
@@ -78,7 +81,13 @@ public class MyClass
     }
 }
 ```
-It has a field and a method. If we create an instance of it `and make a dump of the memory then we will see our object there:
+
+It has a field and a method. If we create an instance of it and make a dump of the memory then we will see our object there:
+
+```cs
+var myClass = new MyClass();
+```
+
 ```
 0:003> !DumpHeap -type GenericsUnderTheHood.MyClass
 Address          MT                     Size
@@ -90,7 +99,8 @@ MT                      Count       TotalSize   Class Name
 Total 1 objects
 ```
 
-and its method table:
+and its `Method Table`:
+
 ```
  0:003> !dumpmt -md 00007fff8e7540d8
 EEClass:         00007fff8e8623f0
@@ -111,10 +121,10 @@ Entry            MethodDesc       JIT    Name
 00007fffeccceb50 00007fffec838130 PreJIT System.Object.Finalize()
 00007fff8e8701c0 00007fff8e7540d0    JIT GenericsUnderTheHood.MyClass..ctor()
 00007fff8e75c048 00007fff8e7540c0   NONE GenericsUnderTheHood.MyClass.MyMethod()
- ```
-We can see its name, some statics and table of methods. WinDbg/SOS has a problem it doesn't show all information but shows additional from other sources too.
+```
 
-And the `EEClass`:
+We can see its name, some statics and table of methods. WinDbg/SOS has a problem it doesn't show all information but shows additional from other sources too. And the `EEClass`:
+
 ```
 0:003> !DumpClass 00007fff8e8623f0
 Class Name:      GenericsUnderTheHood.MyClass
@@ -137,7 +147,8 @@ MT                Field          Offset    Type          VT Attr     Value Name
 
 ##### Generic class example
 Let's take a look at how generics affect our `Method Table`s and `EEClass`es. Let's take a simple generic class:
-```csharp
+
+```cs
 public class MyGenericClass<T>
 {
     private T _myField;
@@ -148,8 +159,10 @@ public class MyGenericClass<T>
     }
 }
 ```
+
 After compilation we get:
-```csharp
+
+```cs
 .class public auto ansi beforefieldinit
     GenericsUnderTheHood.MyGenericClass`1<T>
         extends [mscorlib]System.Object
@@ -165,12 +178,13 @@ After compilation we get:
     ...
 }
 ```
-The name has type arity "1" showing the number of generic types and `!T` instead of type. It's a template that tells JIT that the type is generic and unknown at the compile time and will be defined later. Miracle! CLR knows about generics :relieved:
 
-Let's create an instance of our generic with type `object` and take a look at the Method Table:
-```csharp
+The name has type [arity][wiki-arity] "\`1" showing the number of generic types and `!T` instead of type. It's a template that tells JIT that the type is generic and unknown at the compile time and will be defined later. Miracle! CLR knows about generics :relieved: Let's create an instance of our generic with type `object` and take a look at the Method Table:
+
+```cs
 var myObject = new MyGenericClass<object>();
 ```
+
 ```
 0:003> !DumpMT -md 00007fff8e754368
 EEClass:         00007fff8e862510
@@ -193,8 +207,8 @@ Entry            MethodDesc       JIT    Name
 00007fff8e75c098 00007fff8e754278   NONE GenericsUnderTheHood.MyGenericClass`1[[System.__Canon, mscorlib]].MyMethod()
 ```
 
-The name has `System.Object` parameter type but methods have strange signature. Mystic `System.__Canon` appeared.
-The `EEClass`:
+The name has `System.Object` parameter type but methods have strange signature. Mystic `System.__Canon` appeared. The `EEClass`:
+
 ```
 0:003> !DumpClass 00007fff8e862510
 Class Name:      GenericsUnderTheHood.MyGenericClass`1[[System.__Canon, mscorlib]]
@@ -212,12 +226,13 @@ NumStaticFields:     0
 MT                Field          Offset  Type            VT Attr       Value Name
 00007fffecf05c80  4000002        8       System.__Canon  0 instance    _myField
 ```
-The name with the same mystic `System.__Canon` and type of field is also `System.__Canon`.
 
-Let's create an instance with string type:
+The name with the same mystic `System.__Canon` and type of field is also `System.__Canon`. Let's create an instance with string type:
+
 ```csharp
 var myString = new MyGenericClass<string>();
 ```
+
 ```
 0:003> !DumpMT -md 00007fff8e754400
 EEClass:         00007fff8e862510
@@ -239,12 +254,13 @@ Entry       MethodDesc    JIT Name
 00007fff8e870210 00007fff8e754280    JIT GenericsUnderTheHood.MyGenericClass`1[[System.__Canon, mscorlib]]..ctor()
 00007fff8e75c098 00007fff8e754278   NONE GenericsUnderTheHood.MyGenericClass`1[[System.__Canon, mscorlib]].MyMethod()
 ```
- The name with string type but methods have the same strange signature with `System.__Canon`. If we take a look more closer then we'll se that addresses are the same as in previous example with `object` type. So the `EEClass` is the same.
 
-Let's create and instance of value type.
+The name with string type but methods have the same strange signature with `System.__Canon`. If we take a look more closer then we'll se that addresses are the same as in previous example with `object` type. So the `EEClass` is the same. Let's create and instance of value type.
+
 ```csharp
 var myInt = new MyGenericClass<int>();
 ```
+
 ```
 0:003> !DumpMT -md 00007fff8e7544c0
 EEClass:         00007fff8e862628
@@ -266,7 +282,9 @@ Entry       MethodDesc    JIT Name
 00007fff8e870260 00007fff8e7544b8    JIT GenericsUnderTheHood.MyGenericClass`1[[System.Int32, mscorlib]]..ctor()
 00007fff8e75c0c0 00007fff8e7544b0   NONE GenericsUnderTheHood.MyGenericClass`1[[System.Int32, mscorlib]].MyMethod()
 ```
+
 Name with `int` type, signature too. The `EEClass` is typed with `int` too.
+
 ```
 0:003> !DumpClass 00007fff8e862628
 Class Name:      GenericsUnderTheHood.MyGenericClass`1[[System.Int32, mscorlib]]
@@ -297,6 +315,7 @@ TODO Add the performance of each method.
 
 ### The dessert
 The most interesting part for me. I work on high-load low latency and other fancy-schmancy systems. At that time I worked on the [Real Time Bidding][RTB] system that handled ~500K RPS with latencies below 5ms. After some changes we encountered with the performance degradation in one of our modules that parsed User-Agent header and extracted some data from it. I simplified the code as much as I could to reproduce the issue:
+
 ```csharp
 public class BaseClass<T>
 {
@@ -330,8 +349,9 @@ public class DerivedClass : BaseClass<object>
 {
 }
 ```
-We have a generic class `BaseClass<T>` which has a generic field and a method `Run` to perform some logic. In constructor we call a generic method and in method `Run()` too. And we have an empty class `DerivedClass` which is inherited from the `BaseClass<T>`.
-And a benchmark:
+
+We have a generic class `BaseClass<T>` which has a generic field and a method `Run` to perform some logic. In constructor we call a generic method and in method `Run()` too. And we have an empty class `DerivedClass` which is inherited from the `BaseClass<T>`. And a benchmark:
+
 ```csharp
 public class Program
 {
@@ -350,8 +370,10 @@ public class Program
     }
 }
 ```
+
 And the empty `DerivedClass` 3.5 times slower. Can you explain it??
 I asked [a question on SO][SO]. A lot of developers appeared and started to teach me how to write benchmarks :laughing: Meanwhile [on RSDN][RSDN] an interesting workaround was found: "Just add two empty methods":
+
 ```csharp
 public class BaseClass<T>
 {
@@ -366,7 +388,8 @@ public class BaseClass<T>
 ...
 }
 ```
-My first thoughts were like WAT?? What programming is that when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the thing is in JIT heuristic algorithm. I felt relieve. No more magic there. Then sources of CLR were opened and I raise [an issue on github][github-issue]. Then I got [an explanation from @cmckinsey one of CLR engineers/managers][github-explanation] who explained everything in details and admitted that it's a bug in JITter. [Here's the fix][github-fix]. Take a look at the comment above the changed lines - he didn't touch the comment which was right. That rare moment :open_mouth:
+
+My first thoughts were like WAT?? What programming is that when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the thing is in JIT heuristic algorithm. I felt relieve. No more magic there. Then sources of CLR were opened and I raise [an issue on github][github-issue]. Then I got [an explanation][github-explanation] from @cmckinsey one of CLR engineers/managers who explained everything in details and admitted that it's a bug in JITter. [Here's the fix][github-fix]. Take a look at the comment above the changed lines - he didn't touch the comment which was right. That rare moment :open_mouth:
 
 
 ### Moral
@@ -390,3 +413,4 @@ Just for fun. If there wouldn't be an interest then nothing would happen.
   [github-issue]: https://github.com/dotnet/coreclr/issues/55
   [github-fix]: https://github.com/dotnet/coreclr/pull/618/files
   [github-explanation]: https://github.com/dotnet/coreclr/issues/55#issuecomment-89026823
+  [wiki-arity]: https://en.wikipedia.org/wiki/Arity
