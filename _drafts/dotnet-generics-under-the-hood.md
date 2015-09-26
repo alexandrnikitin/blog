@@ -10,6 +10,7 @@ share: true
 ---
 
 Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [slides here][slides].
+{: .notice}
 
 ### Intro
 
@@ -389,7 +390,11 @@ public class BaseClass<T>
 }
 ```
 
-My first thoughts were like WAT?? What programming is that when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the thing is in JIT heuristic algorithm. I felt relieve. No more magic there. Then sources of CLR were opened and I raise [an issue on github][github-issue]. Then I got [an explanation][github-explanation] from @cmckinsey one of CLR engineers/managers who explained everything in details and admitted that it's a bug in JITter. [Here's the fix][github-fix]. Take a look at the comment above the changed lines - he didn't touch the comment which was right. That rare moment :open_mouth:
+My first thoughts were like WAT?? What programming is that when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the thing is in JIT heuristic algorithm. I felt relieve. No more magic there. Then sources of CLR were opened and I raise [an issue on github][github-issue]. Then I got [an explanation][github-explanation] from @cmckinsey one of CLR engineers/managers who explained everything in details and admitted that it's a bug in JITter. [Here's the fix:][github-fix]
+<figure>
+	<a href="{{ site.url }}/images/dotnet-generics-under-the-hood/the-fix.png"><img src="{{ site.url }}/images/dotnet-generics-under-the-hood/the-fix.png"></a>
+</figure>
+Take a look at the comment above the changed lines - it wasn't changed because was right. That rare moment :open_mouth:
 
 
 ### Moral
