@@ -1,58 +1,61 @@
-# Site settings
+# Site wide configuration
+
 title: The mole is digging
-author: Alexandr Nikitin
-email: nikitin.alexandr.a@gmail.com
-description: Things mole encountered while digging his hole
-keywords: .NET C#
-
-baseurl: "/blog" # the subpath of your site, e.g. /blog/
-url: "https://alexandrnikitin.github.io" # the base hostname & protocol for your site
 locale: en_US
+#url: "https://alexandrnikitin.github.io/blog"
 
-# Google analytics
-google_analytics: UA-52186816-3
+# Jekyll configuration
 
-# Optional features
-animated:           false
-show_related_posts: false
-show_post_footers:  false
-show_social_icons:  false
-
-# Disqus post comments
-# (leave blank to disable Disqus)
-disqus_shortname:
-
-# Social icons
-github_username: alexandrnikitin
-stackoverflow_id: 974487
-twitter_username: nikitin_a_a
-google_plus_id:
-linkedin_username: alexandrnikitin
-angellist_username:
-bitcoin_url:
-paypal_url:
-flattr_button:
-
-# Post sharing icons
-show_sharing_icons: false
-share_text: 'Share this post!'
-# Change to 'true' to enable individual icons
-share_facebook: false
-share_twitter: false
-share_googleplus: false
-share_linkedin: false
-share_digg: false
-share_tumblr: false
-share_reddit: false
-share_stumbleupon: false
-share_hackernews: false
-
-# Build settings
-markdown:     kramdown
-redcarpet:
-  extensions: ['smart', 'tables', 'with_toc_data']
-permalink:    /:title/
+permalink:   /:title/
+markdown:    kramdown
+highlighter: pygments
 sass:
-  compressed: true
+  sass_dir: _sass
+  style: compressed
 gems:
   - jekyll-sitemap
+
+kramdown:
+  input: GFM
+  auto_ids: true
+  footnote_nr: 1
+  entity_output: as_char
+  toc_levels: 1..6
+  use_coderay: true
+
+
+# Site owner
+owner:
+  name: Alexandr Nikitin
+  avatar: bio-photo.jpg
+  bio: "Just another bore"
+  email: nikitin.alexandr.a@gmail.com
+  disqus-shortname:
+  twitter: nikitin_a_a
+  facebook: #username
+  google:
+    plus: #username
+    analytics: UA-52186816-3
+    verify:
+    ad-client:
+    ad-slot:
+  bing-verify:
+  github: alexandrnikitin
+  stackoverflow: 974487/alexandr-nikitin
+  linkedin: alexandrnikitin
+  xing: #username
+  instagram: alexandr_a_nikitin
+  lastfm: #username
+  tumblr: #username
+  pinterest: #username
+  foursquare: #username
+  steam: #username
+  dribbble: #username
+  youtube: #username
+  soundcloud: #username
+  weibo: #username
+  flickr: #username
+  codepen: #username
+
+include: [".htaccess"]
+exclude: ["lib", "config.rb", "Capfile", "config", "log", "Rakefile", "Rakefile.rb", "tmp", "less", "*.sublime-project", "*.sublime-workspace", "test", "spec", "Gruntfile.js", "package.json", "node_modules", "Gemfile", "Gemfile.lock", "LICENSE", "README.md"]
