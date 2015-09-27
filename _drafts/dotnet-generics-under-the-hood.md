@@ -13,12 +13,12 @@ _Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can
 
 ### Overview
 
-1. ~~Compare with Java and C++~~
-2. Generics in .NET
-3. .NET object memory layout
-4. .NET Generics under the hood
-5. The dessert - a bug in JITter
-6. Morale
+1. [~~Compare with Java and C++~~ Short intro](#intro)
+2. [Generics in .NET](#generics-in-net)
+3. [.NET object memory layout](#net-memory-layout)
+4. [.NET Generics under the hood](#generics-under-the-hood)
+5. [The dessert - a bug in JITter](#the-dessert)
+6. [Moral](#moral)
 
 ### Intro
 
