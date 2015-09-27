@@ -9,7 +9,7 @@ comments: true
 share: true
 ---
 
-Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [slides here][slides].
+_Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [slides here][slides]._
 
 ### Intro
 
