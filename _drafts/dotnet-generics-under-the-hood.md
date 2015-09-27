@@ -1,8 +1,7 @@
 ---
 layout: post
 title: .NET Generics under the hood
-date: 2015-09-25
-modified: 2015-09-25
+date: 2015-09-26
 excerpt: About .NET memory layout and how Generics affect it, how they work under the hood and a JITter bug for dessert.
 tags: [.NET, CLR]
 comments: true
@@ -318,24 +317,16 @@ But things get tricky when you call a generic method from your generic method wh
 
 So after saying that, lets talk about how the runtime optimizes these lookups. There are essentially a series of caches to avoid the ultimately expensive lookup of types at runtime via the class loader. Without going into too much detail you can abstractly look at the lookup costs like this:
 
-1. Class-loader - it goes through all hierarchy of objects and their methods and tries to find out whether the method of an object fits the application or not. Obviously the slowest way to do it. (300 clocks)
-2. Type hierarchy walk with global cache lookup - Walk inheritance tree and lookup in the global cache using the declaring type (think about 50-60 clocks for a hit)
-3. Global cache lookup - Lookup in the global cache using the declaring and the application type. (think about 30 clocks for a hit)
-4. `Method Table` slot - Adds a slot to declaring type with An inline sequence of code that can lookup the exact type within a few levels of indirection (think 10 clocks for a hit).
+1. "Class loader" - Walks through all hierarchy of objects and their methods and tries to find out which method fits the application. Obviously the slowest way to do it. (300 clocks)
+2. Type hierarchy walk with global cache lookup - Hierarchy walk but looks up in the global cache using the declaring type. (think about 50-60 clocks for a hit)
+3. Global cache lookup - Lookup in the global cache using the current and the declaring type. (think about 30 clocks for a hit)
+4. `Method Table` slot - Adds a slot to declaring type with a sequence of code that can lookup the exact type within a few levels of indirection (think 10 clocks for a hit).
 
-
-
-
-What means does CLR have to do that?
-Classloader -
-So CLR adds cache for a type. then...
-And the fastest that possible? A slot in Method Table.
-One important note: CLR optimizes a call of a generic method in __your__ method, not the generic method itself. I.e. it adds slots to your class `Method Table` not to generic class `Method Table`.
-TODO Add the performance of each method.
+The source for this a bit later.
 
 ### The dessert
 
-The most interesting part for me. I work on high-load low latency and other fancy-schmancy systems. At that time I worked on the [Real Time Bidding][RTB] system that handled ~500K RPS with latencies below 5ms. After some changes we encountered with the performance degradation in one of our modules that parsed User-Agent header and extracted some data from it. I simplified the code as much as I could to reproduce the issue:
+The most interesting part for me. I work on high-load low latency and other fancy-schmancy systems. At that time I worked on the [Real Time Bidding][RTB] system that handled ~500K RPS with latencies below 5ms. After some changes we encountered with performance degradation in one of our modules that parsed User-Agent header and extracted some data from it. I simplified the code as much as I could to reproduce the issue:
 
 ```csharp
 public class BaseClass<T>
@@ -370,7 +361,7 @@ public class DerivedClass : BaseClass<object>
 {
 }
 ```
-We have a generic class `BaseClass<T>` which has a generic field and a method `Run` to perform some logic. In constructor we call a generic method and in method `Run()` too. And we have an empty class `DerivedClass` which is inherited from the `BaseClass<T>`. And a benchmark:
+We have a generic class `BaseClass<T>` which has a generic field and a method `Run` to perform some logic. In constructor we call a generic method and in method `Run()` too. And we have an **empty** class `DerivedClass` which is inherited from the `BaseClass<T>`. And a benchmark:
 
 ```csharp
 public class Program
@@ -381,7 +372,7 @@ public class Program
         Measure(new BaseClass<object>());
     }
 
-    private static void Measure(BaseClass<object>> baseClass)
+    private static void Measure(BaseClass<object> baseClass)
     {
         var sw = Stopwatch.StartNew();
         baseClass.Run();
@@ -390,8 +381,9 @@ public class Program
     }
 }
 ```
-And the empty `DerivedClass` 3.5 times slower. Can you explain it??
-I asked [a question on SO][SO]. A lot of developers appeared and started to teach me how to write benchmarks :laughing: Meanwhile [on RSDN][RSDN] an interesting workaround was found: "Just add two empty methods":
+And the empty `DerivedClass` 3.5 times slower. Can you explain it?? :scream:
+
+I asked [a question on SO][SO]. A lot of developers appeared that started to teach me how to write benchmarks :laughing: Meanwhile [on RSDN][RSDN] an interesting workaround was found saying "just add two empty methods":
 
 ```csharp
 public class BaseClass<T>
@@ -407,19 +399,18 @@ public class BaseClass<T>
 ...
 }
 ```
-My first thoughts were like WAT?? What programming is that when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the thing is in JIT heuristic algorithm. I felt relieve. No more magic there. Then sources of CLR were opened and I raise [an issue on github][github-issue]. Then I got [a really great explanation][github-explanation] from @cmckinsey one of CLR engineers/managers who explained everything in details and admitted that it's a bug in JITter. Go and read it! I'll wait.
+My first thoughts were like WAT?? What programming is that when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the reason is in JIT heuristic algorithm. I felt relieve. No more magic there. Then sources of CLR were opened and I raised [an issue on github][github-issue]. Then I got [a really great explanation][github-explanation] from @cmckinsey one of CLR engineers/managers who explained everything in details and admitted that it's a bug in JITter. Go and read it! It's worth it. I'll wait.
 
 And after all that digging [here's the fix:][github-fix]
 <figure>
 	<a href="{{ site.url }}/images/dotnet-generics-under-the-hood/the-fix.png"><img src="{{ site.url }}/images/dotnet-generics-under-the-hood/the-fix.png"></a>
 </figure>
-Take a look at the comment above the changed lines - it wasn't changed because was right. That rare moment :open_mouth:
-
+Basically it says that the point \#3 "Global cache lookup" in the list of optimizations mentioned above didn't work as expected (or at all). Take a look at the comment above the changed lines - it wasn't changed because was right. That moment... :open_mouth:
 
 ### Moral
 Is your code slow? Just add two empty methods :laughing:
-Everyone had this bug for years. I just was lucky to find it and pushed and asked CLR team to fix it. Actually .NET is being done by developer as you and me. They also make bugs. And that's normal.
-Just for fun. If there wouldn't be an interest then nothing would happen.
+Everyone has this bug for probably years which was fixed in .NET Core only so far. I just was lucky to find it and asked and pushed CLR team to fix it. Actually .NET  Framework is being done by developers as you and me. They also make bugs. And that's normal.
+Just for fun. If there wouldn't be interest then nothing would happen.
 
   [meetup]: https://www.facebook.com/events/106836509655188/
   [slides]: http://alexandrnikitin.github.io/slides/generics-under-the-hood/#/
