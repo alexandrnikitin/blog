@@ -1,9 +1,9 @@
 ---
 layout: post
-title: .NET generics under the hood
+title: .NET Generics under the hood
 date: 2015-09-25
 modified: 2015-09-25
-excerpt: About .NET memory layout and how generics affect it, how they work under the hood and a JITter bug for dessert.
+excerpt: About .NET memory layout and how Generics affect it, how they work under the hood and a JITter bug for dessert.
 tags: [.NET, CLR]
 comments: true
 share: true
@@ -22,9 +22,9 @@ _Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can
 
 ### Intro
 
-I wanted to start from comparison with Java and C++ just to show that .NET is awesome. But decided not to do that because we already know that .NET is awesome. Don't we? So let's leave it as a statement :smile:  So we will recall .NET memory layout and how objects lay in memory, what's `Method Table` and `EEClass`. We will take a look at how generics affect them and how they work under the hood. Then there's a dessert prepared with performance degradation and a bug in CLR.
+I wanted to start from comparison with Java and C++ just to show that .NET is awesome. But decided not to do that because we already know that .NET is awesome. Don't we? So let's leave it as a statement :smile:  We will recall .NET object memory layout and how objects lay in memory, what's `Method Table` and `EEClass`. We will take a look at how Generics affect them and how they work under the hood. Then there's a dessert prepared with performance degradation and a bug in CLR.
 
-_When I was developing for .NET I always thought that it's cool somewhere else, in another world, stack or language. That everything is interesting and easy there. Hey, Scala has pattern matching, they shouted. Once we introduce Kafka we could process millions of events easily. Or Akka Streams, that's a bleeding edge and would solve all our stream processing problems. And interest took root and I moved to JVM. And more than half a year I write code on Scala. I noticed that I started to curse more often, I don't sleep well, come home and cry on my pillow sometimes. I don't have accustomed things and tools anymore that I had in .NET. And generics of cause which don't exist in JVM :sob: People say here in Lithuania: `"Šuo ir kariamas pripranta."` That means dog get used even to gallows. Ok, let's not talk about it._
+_When I was developing for .NET I always thought that it's cool somewhere else, in another world, stack or language. That everything is interesting and easy there. Hey, Scala has pattern matching, they shouted. Once we introduce Kafka we could process millions of events easily. Or Akka Streams, that's a bleeding edge and would solve all our stream processing problems. And interest took root and I moved to JVM. And more than half a year I write code on Scala. I noticed that I started to curse more often, I don't sleep well, come home and cry on my pillow sometimes. I don't have accustomed things and tools anymore that I had in .NET. And Generics of cause which don't exist in JVM :sob: People say here in Lithuania: `"Šuo ir kariamas pripranta."` That means dog get used even to gallows. Ok, let's not talk about it._
 
 ### Generics in .NET
 
@@ -149,7 +149,7 @@ MT                Field          Offset    Type          VT Attr     Value Name
 ### Generics under the hood
 
 ##### Generic class example
-Let's take a look at how generics affect our `Method Table`s and `EEClass`es. Let's take a simple generic class:
+Let's take a look at how Generics affect our `Method Table`s and `EEClass`es. Let's take a simple generic class:
 
 ```csharp
 public class MyGenericClass<T>
@@ -180,7 +180,7 @@ After compilation we get:
     ...
 }
 ```
-The name has type [arity][wiki-arity] "\`1" showing the number of generic types and `!T` instead of type. It's a template that tells JIT that the type is generic and unknown at the compile time and will be defined later. Miracle! CLR knows about generics :relieved: Let's create an instance of our generic with type `object` and take a look at the Method Table:
+The name has type [arity][wiki-arity] "\`1" showing the number of generic types and `!T` instead of type. It's a template that tells JIT that the type is generic and unknown at the compile time and will be defined later. Miracle! CLR knows about Generics :relieved: Let's create an instance of our generic with type `object` and take a look at the Method Table:
 
 ```csharp
 var myObject = new MyGenericClass<object>();
