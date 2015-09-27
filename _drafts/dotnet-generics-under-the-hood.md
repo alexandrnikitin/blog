@@ -11,11 +11,20 @@ share: true
 
 _Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [slides here][slides]._
 
+### Overview
+
+1. ~~Compare with Java and C++~~
+2. Generics in .NET
+3. .NET object memory layout
+4. .NET Generics under the hood
+5. The dessert - a bug in JITter
+6. Morale
+
 ### Intro
 
 I wanted to start from comparison with Java and C++ just to show that .NET is awesome. But decided not to do that because we already know that .NET is awesome. Don't we? So let's leave it as a statement :smile:  So we will recall .NET memory layout and how objects lay in memory, what's `Method Table` and `EEClass`. We will take a look at how generics affect them and how they work under the hood. Then there's a dessert prepared with performance degradation and a bug in CLR.
 
-When I was developing for .NET I always thought that it's cool somewhere else, in another world, stack or language. That everything is interesting and easy there. Hey, Scala has pattern matching, they shouted. Once we introduce Kafka we could process millions of events easily. Or Akka Streams, that's a bleeding edge and would solve all our stream processing problems. And interest took root and I moved to JVM. And more than half a year I write code on Scala. I noticed that I started to curse more often, I don't sleep well, come home and cry on my pillow sometimes. I don't have accustomed things and tools anymore that I had in .NET. And generics of cause which don't exist in JVM :sob: People say here in Lithuania: `"Šuo ir kariamas pripranta."` That means dog get used even to gallows. Ok, let's not talk about it.
+_When I was developing for .NET I always thought that it's cool somewhere else, in another world, stack or language. That everything is interesting and easy there. Hey, Scala has pattern matching, they shouted. Once we introduce Kafka we could process millions of events easily. Or Akka Streams, that's a bleeding edge and would solve all our stream processing problems. And interest took root and I moved to JVM. And more than half a year I write code on Scala. I noticed that I started to curse more often, I don't sleep well, come home and cry on my pillow sometimes. I don't have accustomed things and tools anymore that I had in .NET. And generics of cause which don't exist in JVM :sob: People say here in Lithuania: `"Šuo ir kariamas pripranta."` That means dog get used even to gallows. Ok, let's not talk about it._
 
 ### Generics in .NET
 
