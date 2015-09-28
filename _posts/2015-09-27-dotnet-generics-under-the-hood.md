@@ -191,7 +191,7 @@ After compilation we get the following `IL` code:
     ...
 }
 ```
-The name has type [arity][wiki-arity] "\`1" showing the number of generic types and `!T` instead of type. It's a template that tells JIT that the type is generic and unknown at the compile time and will be defined later. Miracle! :sparkles: CLR knows about Generics :relieved: Let's create an instance of our generic with type `object` and take a look at the `Method Table`:
+The name has the type [arity][wiki-arity] "\`1" showing the number of Generic type parameters and `!T` as a placeholder for the type. It's a template that tells JIT that the type is generic and unknown at the compile time and will be defined later. Miracle! :sparkles: CLR knows about Generics :relieved: Let's create an instance of our generic with type `object` and take a look at the `Method Table`:
 
 ```csharp
 var myObject = new MyGenericClass<object>();
