@@ -2,6 +2,7 @@
 layout: post
 title: .NET Generics under the hood
 date: 2015-09-27
+date: 2015-09-28
 excerpt: About .NET memory layout and how Generics affect it, how they work under the hood and a JITter bug for dessert.
 tags: [.NET, CLR]
 comments: true
@@ -21,9 +22,11 @@ _Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can
 
 ### Intro
 
-I wanted to start from comparison with Java "generics" and C++ templates just to show that .NET is awesome. But decided not to do that because we already know that .NET is awesome. Don't we? So let's leave it as a statement :smile:  We will recall .NET object memory layout and how objects lay in memory, what's `Method Table` and `EEClass`. We will take a look at how Generics affect them and how they work under the hood, what optimizations CLR performs to keep them efficient. Then there's a dessert prepared with performance degradation and a bug in CLR. Stay tuned :bowtie:
+I wanted to start from comparison with Java "generics" and C++ templates just to show that .NET is "better" here. But decided not to do that because we already know that .NET is wonderful. Don't we? So let's leave it as a statement :smile:  We will recall .NET object memory layout and how objects lay in memory, what's `Method Table` and `EEClass`. We will take a look at how Generics affect them and how they work under the hood, what optimizations CLR performs to keep them efficient. Then there's a dessert prepared with performance degradation and a bug in CLR. Stay tuned :bowtie:
 
-_Yes, Java and a couple of swear words. When I was developing for .NET I always thought that it's cool somewhere else, in another world, stack or language. That everything is interesting and easy there. Hey, Scala has pattern matching, they shouted. Once we introduce Kafka we could process millions of events easily. Or Akka Streams, that's a bleeding edge and would solve all our stream processing problems. And interest took root and I moved to JVM. And more than half a year I write code on Scala. I noticed that I started to curse more often, I don't sleep well, come home and cry on my pillow sometimes. I don't have accustomed things and tools anymore that I had in .NET. And Generics of cause which don't exist in JVM :sob: People say here in Lithuania: `"Šuo ir kariamas pripranta."` That means dog get used even to gallows. But I started to like it but that's another story. Sooo..._
+<sub>
+_Yes, Java and a couple of swear words. When I was developing for .NET I always thought that it's cool somewhere else, in another world, stack or language. That everything is interesting and easy there. Hey, Scala has pattern matching, they shouted. Once we introduce Kafka we could process millions of events easily. Or Akka Streams, that's a bleeding edge and would solve all our stream processing problems. And interest took root and I moved to JVM. And more than half a year I write code on Scala. I noticed that I started to curse more often, I don't sleep well, come home and cry on my pillow sometimes. I don't have accustomed things and tools anymore that I had in .NET. And Generics of course which don't exist in JVM :sob: People say here in Lithuania: `"Šuo ir kariamas pripranta."` That means dog get used even to gallows. But I started to like it but that's another story. Sooo..._
+</sub>
 
 ### Generics in .NET
 
