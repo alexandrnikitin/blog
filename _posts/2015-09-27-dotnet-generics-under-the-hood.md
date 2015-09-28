@@ -311,21 +311,23 @@ MT    Field   Offset                 Type VT     Attr            Value Name
 
 ##### So how does it work under the hood then?
 
-Value types do not share anything and each value type has its own `Method Table`, `EEClass` and **its own JITted code**.
+Value types do not share anything and each value type has its own `Method Table`, `EEClass` and **its own JITted code**. In other words, for each value type used as a generic type parameter CLR will produce a different piece of code. Which could lead to what is known as "code bloat" or code explosion and increase the memory footprint of the program. But that's inevitable because the compiler has to know the size of the value type and the layout of its fields during the compilation process.
 
-Reference types have their own `Method Tables`. And we can say that a `Method Table` uniquely describes a type. But all reference types of a generic share one `EEClass` and **share JITted code of its methods** between each other. `System.__Canon` is an internal type and acts as a placeholder. Its main goal to tell JIT that the type will be found out during Runtime.
+Reference types have their own `Method Tables`. And we can say that a `Method Table` uniquely describes a type. But all reference types of a generic share one `EEClass` and **share JITted code of its methods** between each other. In other words, for each reference type used as a generic type parameter CLR will use one code. That's an optimization for memory which greatly reduces the footprint used for Generics. That's possible because reference types have the same "word" size. `System.__Canon` is an internal type and acts as a placeholder. Its main goal to tell JIT that the type will be found out during Runtime.
+
+The rules are the same for generics with more than one type parameter. If all type parameters are reference types then code is shared otherwise not.
 
 Everything is pretty straightforward when you call a specialized(typed) generic method from a regular method. All checks and type lookups can be done during compilation (inc JIT) phase.
 But things get tricky when you call a generic method from your generic method where you don't know the type. Code for reference types is shared, remember? When a shared method is executed then any applications of generics in its body have to be looked up to get the concrete runtime type. CLR calls this process "runtime handle lookup". This process is the most important aspect of making shared generic code as nearly as efficient as regular methods. Because of the critical performance needs of this feature, both the JIT and runtime cooperate through a series of sophisticated techniques to reduce the overhead.
 
-So after saying that, lets talk about how the runtime optimizes these lookups. There are essentially a series of caches to avoid the ultimately expensive lookup of types at runtime via the class loader. Without going into too much detail you can abstractly look at the lookup costs like this:
+Lets talk about how the runtime optimizes these lookups. There are essentially a series of caches to avoid the ultimately expensive lookup of types at runtime via the class loader. Without going into too much detail you can abstractly look at the lookup costs like this:
 
 1. "Class loader" - Walks through all hierarchy of objects and their methods and tries to find out which method fits the application. Obviously the slowest way to do it. (300 clocks)
 2. Type hierarchy walk with global cache lookup - Hierarchy walk but looks up in the global cache using the declaring type. (think about 50-60 clocks for a hit)
 3. Global cache lookup - Lookup in the global cache using the current and the declaring type. (think about 30 clocks for a hit)
 4. `Method Table` slot - Adds a slot to declaring type with a sequence of code that can lookup the exact type within a few levels of indirection (think 10 clocks for a hit).
 
-The source for this a bit later.
+The source for this info a bit later.
 
 ### The dessert
 
@@ -408,7 +410,7 @@ And after all that digging [here's the fix:][github-fix]
 <figure>
 	<a href="{{ site.url }}/images/dotnet-generics-under-the-hood/the-fix.png"><img src="{{ site.url }}/images/dotnet-generics-under-the-hood/the-fix.png"></a>
 </figure>
-Basically it says that the point \#3 "Global cache lookup" in the list of optimizations mentioned above didn't work as expected (or at all). Take a look at the comment above the changed lines - it wasn't changed because was right. That moment... :open_mouth:
+Basically it says that the point \#3 "Global cache lookup" in the list of optimizations mentioned above didn't work as expected (or at all). Take a look at the comment above the changed lines - it wasn't changed because was right. That rare moment... :open_mouth:
 
 ### Moral
 Is your code slow? Just add two empty methods :laughing:
