@@ -2,7 +2,7 @@
 layout: post
 title: .NET Generics under the hood
 date: 2015-09-27
-date: 2015-09-28
+modified: 2015-09-28
 excerpt: About .NET memory layout and how Generics affect it, how they work under the hood and a JITter bug for dessert.
 tags: [.NET, CLR]
 comments: true
