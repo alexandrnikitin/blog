@@ -9,7 +9,7 @@ comments: true
 share: true
 ---
 
-_Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [slides here][slides]._
+_Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [the slides here][slides]._
 
 ### Overview
 
@@ -22,19 +22,19 @@ _Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can
 
 ### Intro
 
-I wanted to start from comparison with Java "generics" and C++ templates just to show that .NET is "better" here. But decided not to do that because we already know that .NET is wonderful. Don't we? So let's leave it as a statement :smile:  We will recall .NET object memory layout and how objects lay in memory, what's `Method Table` and `EEClass`. We will take a look at how Generics affect them and how they work under the hood, what optimizations CLR performs to keep them efficient. Then there's a dessert prepared with performance degradation and a bug in CLR. Stay tuned :bowtie:
+I was going to start with a comparison to Java "generics" and C++ templates just to show that .NET is "better". But I decided not to do that because we already know that .NET is wonderful. Don't we? So let's leave it as a statement :smile:  We will recall .NET's object memory layout and how objects lay in memory and about `Method Table` and `EEClass`. We will take a look at how Generics affect them and how they work under the hood, and what optimizations CLR performs to keep them efficient. Then there's a dessert prepared about performance degradation and a bug in CLR. Stay tuned :bowtie:
 
 <sub>
-_Yes, Java and a couple of swear words. When I was developing for .NET I always thought that it's cool somewhere else, in another world, stack or language. That everything is interesting and easy there. Hey, Scala has pattern matching, they shouted. Once we introduce Kafka we could process millions of events easily. Or Akka Streams, that's a bleeding edge and would solve all our stream processing problems. And interest took root and I moved to JVM. And more than half a year I write code on Scala. I noticed that I started to curse more often, I don't sleep well, come home and cry on my pillow sometimes. I don't have accustomed things and tools anymore that I had in .NET. And Generics of course which don't exist in JVM :sob: People say here in Lithuania: `"Šuo ir kariamas pripranta."` That means dog get used even to gallows. But I started to like it but that's another story. Sooo..._
+_Yes, Java and a couple of swear words. When I was developing for .NET, I always thought that it'd be cool somewhere else, in another world, stack or language. That everything would be interesting and easy there. Hey, Scala has pattern matching, they shouted. Once we introduce Kafka, we can process millions of events easily. Or Akka Streams, that's a bleeding edge and would solve all our stream processing problems. And interest took root and I moved to JVM. And more than half a year I write code in Scala. I noticed that I have started to curse more often, I don't sleep well, and I come home and cry on my pillow sometimes. I don't have accustomed things and tools anymore that I had in .NET. And Generics of course which don't exist in JVM :sob: People here in Lithuania say: `"Šuo ir kariamas pripranta."` That means a dog can even get used to the gallows. I have started to like it but that's another story. Sooo..._
 </sub>
 
 ### Generics in .NET
 
-And they are awesome! Probably there are no developers who didn't use them or love them. Is there? They have a lot of advantages and benefits. In CLR documentation it's written that they **make programming easier**, yes it's [bold there][coreclr-generics]. They reduce code duplication. They are smart and support constraints such as class or struct, implements class or interface. They can preserve inheritance through covariance and contravariance. They improve performance: no more boxings/unboxings, no castings. And all that happen during compilation. How cool is that?! But nothing goes for free and we'll figure out the price :wink:
+And they are awesome! Probably there are no developers who don't use them or love them. Are there any? They have a lot of advantages and benefits. In the CLR documentation, it's written that they **make programming easier**, yes it's [bold there][coreclr-generics]. They reduce code duplication. They are smart and support constraints such as class and struct, and implements classes and interfaces. They can preserve inheritance through covariance and contravariance. They improve performance: no more boxings/unboxings, no castings. And all that happens during compilation. How cool is that?! But nothing is free and we'll figure out the price :wink:
 
 ### .NET memory layout
 
-At first let's recall how objects are stored in memory. When we create an instance of an object then the following structure (array) allocated in the heap:
+First, let's recall how objects are stored in memory. When we create an instance of an object, then the following structure (array) is allocated in the heap:
 
 ```csharp
 var o = new object();
@@ -49,7 +49,7 @@ var o = new object();
 | FieldN               |
 +----------------------+
 ```
-Where the first element called "header" and contains hashcode or address in the lock table. The second element contains the `Method Table` address. Next goes fields of the object. So the variable `o` is just a pointer that points to the `Method Table`. And the `Method Table` is ...
+The first element is called the "header" and contains a hashcode or an address in the lock table. The second element contains the `Method Table` address. Next are the fields of the object. So, the variable `o` is just a pointer that points to the `Method Table`. And the `Method Table` is ...
 
 ##### EEClass
 Let me start from `EEClass` :wink: `EEClass` is a class, it knows everything about the type it represents. It gives access to its data through getter and setters. It's a quite complex class which consists of [more than 2000 lines of code][EEClass] and contains other classes and structs which are also not so small. For example [`EEClassOptionalFields`][EEClassOptionalFields] that is something like a dictionary that stores optional data. Or [`EEClassPackedFields`][EEClassPackedFields] which is optimization for memory. `EEClass` stores a lot of numeric data such as number of method, fields, static methods, static fields and etc. So `EEClassPackedFields` optimizes them and cuts leading zeros and pack into one array with access by index. `EEClass` is also called "cold data". So getting back to `Method Table`.
