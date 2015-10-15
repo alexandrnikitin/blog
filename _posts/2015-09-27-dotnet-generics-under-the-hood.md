@@ -9,7 +9,7 @@ comments: true
 share: true
 ---
 
-_Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [slides here][slides]._
+_Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can find [the slides here][slides]._
 
 ### Overview
 
@@ -22,19 +22,19 @@ _Note: This post is based on the talk I gave at [a .NET meetup][meetup]. You can
 
 ### Intro
 
-I wanted to start from comparison with Java "generics" and C++ templates just to show that .NET is "better" here. But decided not to do that because we already know that .NET is wonderful. Don't we? So let's leave it as a statement :smile:  We will recall .NET object memory layout and how objects lay in memory, what's `Method Table` and `EEClass`. We will take a look at how Generics affect them and how they work under the hood, what optimizations CLR performs to keep them efficient. Then there's a dessert prepared with performance degradation and a bug in CLR. Stay tuned :bowtie:
+I was going to start with a comparison to Java "generics" and C++ templates just to show that .NET is "better". But I decided not to do that because we already know that .NET is wonderful. Don't we? So let's leave it as a statement :smile:  We will recall .NET's object memory layout and how objects lay in memory and about `Method Table` and `EEClass`. We will take a look at how Generics affect them and how they work under the hood, and what optimizations CLR performs to keep them efficient. Then there's a dessert prepared about performance degradation and a bug in CLR. Stay tuned :bowtie:
 
 <sub>
-_Yes, Java and a couple of swear words. When I was developing for .NET I always thought that it's cool somewhere else, in another world, stack or language. That everything is interesting and easy there. Hey, Scala has pattern matching, they shouted. Once we introduce Kafka we could process millions of events easily. Or Akka Streams, that's a bleeding edge and would solve all our stream processing problems. And interest took root and I moved to JVM. And more than half a year I write code on Scala. I noticed that I started to curse more often, I don't sleep well, come home and cry on my pillow sometimes. I don't have accustomed things and tools anymore that I had in .NET. And Generics of course which don't exist in JVM :sob: People say here in Lithuania: `"Šuo ir kariamas pripranta."` That means dog get used even to gallows. But I started to like it but that's another story. Sooo..._
+_Yes, Java and a couple of swear words. When I was developing for .NET, I always thought that it'd be cool somewhere else, in another world, stack or language. That everything would be interesting and easy there. Hey, Scala has pattern matching, they shouted. Once we introduce Kafka, we can process millions of events easily. Or Akka Streams, that's a bleeding edge and would solve all our stream processing problems. And interest took root and I moved to JVM. And more than half a year I write code in Scala. I noticed that I have started to curse more often, I don't sleep well, and I come home and cry on my pillow sometimes. I don't have accustomed things and tools anymore that I had in .NET. And Generics of course which don't exist in JVM :sob: People here in Lithuania say: `"Šuo ir kariamas pripranta."` That means a dog can even get used to the gallows. I have started to like it but that's another story. Sooo..._
 </sub>
 
 ### Generics in .NET
 
-And they are awesome! Probably there are no developers who didn't use them or love them. Is there? They have a lot of advantages and benefits. In CLR documentation it's written that they **make programming easier**, yes it's [bold there][coreclr-generics]. They reduce code duplication. They are smart and support constraints such as class or struct, implements class or interface. They can preserve inheritance through covariance and contravariance. They improve performance: no more boxings/unboxings, no castings. And all that happen during compilation. How cool is that?! But nothing goes for free and we'll figure out the price :wink:
+And they are awesome! Probably there are no developers who don't use them or love them. Are there any? They have a lot of advantages and benefits. In the CLR documentation, it's written that they **make programming easier**, yes it's [bold there][coreclr-generics]. They reduce code duplication. They are smart and support constraints such as class and struct, and implements classes and interfaces. They can preserve inheritance through covariance and contravariance. They improve performance: no more boxings/unboxings, no castings. And all that happens during compilation. How cool is that?! But nothing is free and we'll figure out the price :wink:
 
 ### .NET memory layout
 
-At first let's recall how objects are stored in memory. When we create an instance of an object then the following structure (array) allocated in the heap:
+First, let's recall how objects are stored in memory. When we create an instance of an object, then the following structure (array) is allocated in the heap:
 
 ```csharp
 var o = new object();
@@ -49,13 +49,13 @@ var o = new object();
 | FieldN               |
 +----------------------+
 ```
-Where the first element called "header" and contains hashcode or address in the lock table. The second element contains the `Method Table` address. Next goes fields of the object. So the variable `o` is just a pointer that points to the `Method Table`. And the `Method Table` is ...
+The first element is called the "header" and contains a hashcode or an address in the lock table. The second element contains the `Method Table` address. Next are the fields of the object. So, the variable `o` is just a pointer that points to the `Method Table`. And the `Method Table` is ...
 
 ##### EEClass
-Let me start from `EEClass` :wink: `EEClass` is a class, it knows everything about the type it represents. It gives access to its data through getter and setters. It's a quite complex class which consists of [more than 2000 lines of code][EEClass] and contains other classes and structs which are also not so small. For example [`EEClassOptionalFields`][EEClassOptionalFields] that is something like a dictionary that stores optional data. Or [`EEClassPackedFields`][EEClassPackedFields] which is optimization for memory. `EEClass` stores a lot of numeric data such as number of method, fields, static methods, static fields and etc. So `EEClassPackedFields` optimizes them and cuts leading zeros and pack into one array with access by index. `EEClass` is also called "cold data". So getting back to `Method Table`.
+Let me start from `EEClass` :wink: `EEClass` is a class, and it knows everything about the type it represents. It gives access to its data through getter and setters. It's quite a complex class. It consists of [more than 2000 lines of code][EEClass] and contains other classes and structs, which are also not so small. For example, there is [`EEClassOptionalFields`][EEClassOptionalFields], which is like a dictionary that stores optional data. Or [`EEClassPackedFields`][EEClassPackedFields], which optimizes memory use. `EEClass` stores a lot of numeric data, such as the number of methods, fields, static methods, static fields, etc. So, `EEClassPackedFields` optimizes them, drops leading zeros and packs them into one array with access by index. `EEClass` is also called "cold data". So, getting back to `Method Table`.
 
 ##### Method Table
-`Method Table` is optimization! Everything that runtime needs is extracted from `EEClass` to the `Method Table`. It's an array with access by index. It is also called "hot data". It may contain the following data:
+`Method Table` is used for optimization! Everything that the runtime needs is extracted from `EEClass` to `Method Table`. It's an array with access by index. It is also called "hot data". It may contain the following data:
 
 ```
 +-------------------------------------+
@@ -75,9 +75,9 @@ Let me start from `EEClass` :wink: `EEClass` is a class, it knows everything abo
 
 ##### WinDbg
 
-To take a look at how they are presented in CLR [`WinDbg`][WinDbg] comes to the rescue - the great and powerful. It's a very powerful tool for debugging any application for Windows but it has awful user interface and user experience :flushed: There are plugins: [`SOS`][SOS] (Son of Strike) from CLR team and [`SOSex`][SOSex] from a 3rd party developer.
+To take a look at how they are presented in CLR, [`WinDbg`][WinDbg] comes to the rescue - the great and powerful. It's a very powerful tool for debugging any application running on Windows but it has an awful user interface and user experience :flushed: There are plugins: [`SOS`][SOS] (Son of Strike) from the CLR team and [`SOSex`][SOSex] from a third-party developer.
 
-_The Son of Strike isn't just a nice name. When the CLR team was formed they had informal name "Lightning". They created a tool for debugging Runtime and called it "Strike". It was a very powerful tool that could probably do everything in CLR. When time came to first release they limited it and called "Son of Strike". True story :wink:_
+_The Son of Strike isn't just a nice name. When the CLR team was formed, it had an informal name "Lightning". They created a tool for debugging the runtime and called it "Strike". It was a very powerful tool that could probably do everything in CLR. When the time came for the first release, they limited it and called "Son of Strike". True story :wink:_
 
 ##### POCO example
 Let's take a simple class:
@@ -93,7 +93,7 @@ public class MyClass
     }
 }
 ```
-It has a field and a method. If we create an instance of it and make a dump of the memory then we will see our object there:
+It has a field and a method. If we create an instance of it and take a dump of the memory then we will see our object there:
 
 ```csharp
 var myClass = new MyClass();
@@ -131,7 +131,7 @@ Entry            MethodDesc       JIT    Name
 00007fff8e8701c0 00007fff8e7540d0    JIT GenericsUnderTheHood.MyClass..ctor()
 00007fff8e75c048 00007fff8e7540c0   NONE GenericsUnderTheHood.MyClass.MyMethod()
 ```
-We can see its name, some statics and table of methods. WinDbg/SOS has a problem it doesn't show all information but shows additional from other sources too. And the `EEClass`:
+We can see its name, some statistics and a table of methods. WinDbg/SOS has a problem: it doesn't show all the information but shows additional data from other sources. And the `EEClass`:
 
 ```
 0:003> !DumpClass 00007fff8e8623f0
@@ -152,9 +152,9 @@ MT                Field          Offset    Type          VT Attr     Value Name
 ```
 
 ##### Links to dig deeper
-I find [the ".NET Type Internals" article][type-internals] on codeproject quite comprehensive. And I liked [the "Pro .NET Performance" book][book-pro-dotnet-performance] by by Sasha Goldshtein, Dima Zurbalev, Ido Flatow which has a really good chapter about type internals.
+I find [the ".NET Type Internals" article][type-internals] on codeproject quite comprehensive. And I liked [the "Pro .NET Performance" book][book-pro-dotnet-performance] by Sasha Goldshtein, Dima Zurbalev and Ido Flatow. It has a really good chapter about type internals.
 
-To get familiar with WinDbg I could recommend [the "Debugging .NET with WinDbg" tutorial by Sebastian Solnica][windbg-tutorial]
+To get familiar with WinDbg, I recommend [the "Debugging .NET with WinDbg" tutorial by Sebastian Solnica][windbg-tutorial]
 
 
 ### Generics under the hood
@@ -173,7 +173,7 @@ public class MyGenericClass<T>
     }
 }
 ```
-After compilation we get the following `IL` code:
+After compilation, we get the following `IL` code:
 
 ```
 .class public auto ansi beforefieldinit
@@ -218,7 +218,7 @@ Entry            MethodDesc       JIT    Name
 00007fff8e870210 00007fff8e754280    JIT GenericsUnderTheHood.MyGenericClass`1[[System.__Canon, mscorlib]]..ctor()
 00007fff8e75c098 00007fff8e754278   NONE GenericsUnderTheHood.MyGenericClass`1[[System.__Canon, mscorlib]].MyMethod()
 ```
-The name has `System.Object` parameter type but methods have strange signature. Mystic `System.__Canon` appeared. The `EEClass`:
+The name has a `System.Object` parameter type but its methods have a strange signature. Mystic `System.__Canon` has appeared. The `EEClass`:
 
 ```
 0:003> !DumpClass 00007fff8e862510
@@ -237,7 +237,7 @@ NumStaticFields:     0
 MT                Field          Offset  Type            VT Attr       Value Name
 00007fffecf05c80  4000002        8       System.__Canon  0 instance    _myField
 ```
-The name with the same mystic `System.__Canon` and type of field is also `System.__Canon`. Let's create an instance with string type:
+The name with the same mystic `System.__Canon` and type of field is also `System.__Canon`. Let's create an instance with the string type:
 
 ```csharp
 var myString = new MyGenericClass<string>();
@@ -263,7 +263,7 @@ Entry       MethodDesc    JIT Name
 00007fff8e870210 00007fff8e754280    JIT GenericsUnderTheHood.MyGenericClass`1[[System.__Canon, mscorlib]]..ctor()
 00007fff8e75c098 00007fff8e754278   NONE GenericsUnderTheHood.MyGenericClass`1[[System.__Canon, mscorlib]].MyMethod()
 ```
-The name with string type but methods have the same strange signature with `System.__Canon`. If we take a look more closer then we'll see that **addresses are the same** as in previous example with `object` type. So the `EEClass` is the same for `string` typed generic and shared with `object` typed. While their Method Tables are different. Let's take a look at value types.
+The name with string type but methods have the same strange signature with `System.__Canon`. If we take a closer look, then we'll see that **addresses are the same** as in the previous example with the `object` type. So, the `EEClass` is the same for a `string` typed generic and it's shared with `object` typed generic. However, their Method Tables are different. Let's take a look at value types:
 
 ```csharp
 var myInt = new MyGenericClass<int>();
@@ -289,7 +289,7 @@ Entry       MethodDesc    JIT Name
 00007fff8e870260 00007fff8e7544b8    JIT GenericsUnderTheHood.MyGenericClass`1[[System.Int32, mscorlib]]..ctor()
 00007fff8e75c0c0 00007fff8e7544b0   NONE GenericsUnderTheHood.MyGenericClass`1[[System.Int32, mscorlib]].MyMethod()
 ```
-Name with `System.Int32` type, signatures too. The `EEClass` is typed with `System.Int32` too.
+The name with the `System.Int32` type, signatures have it too. The `EEClass` is typed with `System.Int32` too.
 
 ```
 0:003> !DumpClass 00007fff8e862628
@@ -311,27 +311,27 @@ MT    Field   Offset                 Type VT     Attr            Value Name
 
 ##### So how does it work under the hood then?
 
-Value types do not share anything and each value type has its own `Method Table`, `EEClass` and **its own JITted code**. In other words, for each value type used as a generic type parameter CLR will produce a different piece of code. Which could lead to what is known as "code bloat" or code explosion and increase the memory footprint of the program. But that's inevitable because the compiler has to know the size of the value type and the layout of its fields during the compilation process.
+Value types do not share anything and each value type has its own `Method Table` and `EEClass` and **its own JITted code**. In other words, for each value type used as a generic type parameter, CLR will produce a different piece of code. This could lead to what is known as "code bloat" or code explosion and increase the memory footprint of the program. But that's inevitable because the compiler has to know the size of the value type and the layout of its fields during the compilation process.
 
-Reference types have their own `Method Tables`. And we can say that a `Method Table` uniquely describes a type. But all reference types of a generic share one `EEClass` and **share JITted code of its methods** between each other. In other words, for each reference type used as a generic type parameter CLR will use one code. That's an optimization for memory which greatly reduces the footprint used for Generics. That's possible because reference types have the same "word" size. `System.__Canon` is an internal type and acts as a placeholder. Its main goal to tell JIT that the type will be found out during Runtime.
+Reference types have their own `Method Tables`. And we can say that a `Method Table` uniquely describes a type. But all reference types of a generic share one `EEClass` and **share JITted code of its methods** between each other. In other words, for each reference type used as a generic type parameter, CLR will use one piece code. That's an optimization for the memory that greatly reduces the footprint used for Generics. That's possible because reference types have the same "word" size. `System.__Canon` is an internal type and acts as a placeholder. Its main goal is to tell JIT that the type will be found during runtime.
 
-The rules are the same for generics with more than one type parameter. If all type parameters are reference types then code is shared otherwise not.
+The rules are the same for generics with more than one type parameter. If all type parameters are reference types, then code is shared otherwise not.
 
-Everything is pretty straightforward when you call a specialized(typed) generic method from a regular method. All checks and type lookups can be done during compilation (inc JIT) phase.
-But things get tricky when you call a generic method from your generic method where you don't know the type. Code for reference types is shared, remember? When a shared method is executed then any applications of generics in its body have to be looked up to get the concrete runtime type. CLR calls this process "runtime handle lookup". This process is the most important aspect of making shared generic code as nearly as efficient as regular methods. Because of the critical performance needs of this feature, both the JIT and runtime cooperate through a series of sophisticated techniques to reduce the overhead.
+Everything is pretty straightforward when you call a specialized(typed) generic method from a regular method. All checks and type lookups can be done during the compilation (inc JIT) phase.
+But things get tricky when you call a generic method from another generic method where you don't know the type. The code for the reference types is shared, remember? When a shared method is executed then any application of generics in its body will have to be looked up to get the concrete runtime type. CLR calls this process "runtime handle lookup". This process is the most important aspect of making shared generic code as nearly as efficient as regular methods. Because of the critical performance needs of this feature, both the JIT and runtime cooperate through a series of sophisticated techniques to reduce the overhead.
 
-Lets talk about how the runtime optimizes these lookups. There are essentially a series of caches to avoid the ultimately expensive lookup of types at runtime via the class loader. Without going into too much detail you can abstractly look at the lookup costs like this:
+Let's talk about how the runtime optimizes these lookups. There are essentially a series of caches to avoid the ultimately expensive lookup of types at runtime via the class loader. Without going into too much detail, you can abstractly look at the lookup costs like this:
 
-1. "Class loader" - Walks through all hierarchy of objects and their methods and tries to find out which method fits the application. Obviously the slowest way to do it. (300 clocks)
-2. Type hierarchy walk with global cache lookup - Hierarchy walk but looks up in the global cache using the declaring type. (think about 50-60 clocks for a hit)
-3. Global cache lookup - Lookup in the global cache using the current and the declaring type. (think about 30 clocks for a hit)
-4. `Method Table` slot - Adds a slot to declaring type with a sequence of code that can lookup the exact type within a few levels of indirection (think 10 clocks for a hit).
+1. "Class loader" - This walks through the entire hierarchy of objects and their methods and tries to find out which method fits the application. Obviously, this is the slowest way to do it. (300 clocks)
+2. Type hierarchy walk with global cache lookup - This is a hierarchy walk but it looks in the global cache using the declaring type. (think about 50-60 clocks for a hit)
+3. Global cache lookup - This is a lookup in the global cache using the current and the declaring type. (think about 30 clocks for a hit)
+4. `Method Table` slot - This adds a slot to the declaring type with a code sequence that can lookup the exact type within a few levels of indirection (think 10 clocks for a hit).
 
-The source for this info a bit later.
+The source for this info is given a bit later.
 
 ### The dessert
 
-The most interesting part for me. I work on high-load low latency and other fancy-schmancy systems. At that time I worked on the [Real Time Bidding][RTB] system that handled ~500K RPS with latencies below 5ms. After some changes we encountered with performance degradation in one of our modules that parsed User-Agent header and extracted some data from it. I simplified the code as much as I could to reproduce the issue:
+This is the most interesting part for me. I work on high-load low latency and other fancy-schmancy systems. At that time, I worked on a [real-time bidding][RTB] system that handled ~500K RPS with latencies below 5ms. After some changes, we encountered a performance degradation in one of our modules that parsed the user-agent header and extracted some data from it. I have simplified the code as much as I can to reproduce the issue:
 
 ```csharp
 public class BaseClass<T>
@@ -366,7 +366,7 @@ public class DerivedClass : BaseClass<object>
 {
 }
 ```
-We have a generic class `BaseClass<T>` which has a generic field and a method `Run` to perform some logic. In constructor we call a generic method and in method `Run()` too. And we have an **empty** class `DerivedClass` which is inherited from the `BaseClass<T>`. And a benchmark:
+We have a generic class `BaseClass<T>`, which has a generic field and a method `Run` to perform some logic. In the constructor, we call a generic method and in method `Run()` too. And we have an **empty** class `DerivedClass`, which is inherited from the `BaseClass<T>`. And a benchmark:
 
 ```csharp
 public class Program
@@ -386,9 +386,9 @@ public class Program
     }
 }
 ```
-And the empty `DerivedClass` 3.5 times slower. Can you explain it?? :scream:
+The empty `DerivedClass` is 3.5 times slower. Can you explain it?? :scream:
 
-I asked [a question on SO][SO]. A lot of developers appeared that started to teach me how to write benchmarks :laughing: Meanwhile [on RSDN][RSDN] an interesting workaround was found saying "just add two empty methods":
+I asked [a question on SO][SO]. A lot of developers appeared and started to teach me how to write benchmarks :laughing: Meanwhile, [on RSDN][RSDN], an interesting workaround was found saying "just add two empty methods":
 
 ```csharp
 public class BaseClass<T>
@@ -404,18 +404,18 @@ public class BaseClass<T>
 ...
 }
 ```
-My first thoughts were like WAT?? What programming is that when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the reason is in JIT heuristic algorithm. I felt relieve. No more magic there. Then sources of CLR were opened and I raised [an issue on github][github-issue]. Then I got [a really great explanation][github-explanation] from @cmckinsey one of CLR engineers/managers who explained everything in details and admitted that it's a bug in JITter. Go and read it! It's worth it. I'll wait.
+My first thoughts were like WAT?? What programming is that when you add two empty methods and it performs faster?? Then I got [an answer from Microsoft][MicrosoftConnect] with the same workaround and saying that the reason is due to the JIT heuristic algorithm. I felt relieved. No more magic there. Then, the CLR sources were opened and I raised [an issue on GitHub][github-issue]. I got [a really great explanation][github-explanation] from @cmckinsey one of CLR's engineers/managers, who explained everything in detail and admitted that it's a bug in JITter. Go and read it! It's worth it. I'll wait.
 
-And after all that digging [here's the fix:][github-fix]
+And after all that digging, [here's the fix:][github-fix]
 <figure>
 	<a href="{{ site.url }}/images/dotnet-generics-under-the-hood/the-fix.png"><img src="{{ site.url }}/images/dotnet-generics-under-the-hood/the-fix.png"></a>
 </figure>
-Basically it says that the point \#3 "Global cache lookup" in the list of optimizations mentioned above didn't work as expected (or at all). Take a look at the comment above the changed lines - it wasn't changed because was right. That rare moment... :open_mouth:
+Basically, it says that point \#3 "Global cache lookup" in the list of optimizations mentioned above doesn't work as expected (or at all). Take a look at the comment above the changed lines - it wasn't changed because it was right. That rare moment... :open_mouth:
 
 ### Moral
 Is your code slow? Just add two empty methods :laughing:
-Everyone has this bug for probably years which was fixed in .NET Core only so far. I just was lucky to find it and asked and pushed CLR team to fix it. Actually .NET  Framework is being done by developers as you and me. They also make bugs. And that's normal.
-Just for fun. If there wouldn't be interest then nothing would happen.
+Everyone experiences this bug for, probably, years. It has been fixed in .NET Core only so far. I just was lucky to find it, and I asked and pushed the CLR team to fix it. Actually, .NET  Framework is being developed by engineers like you and me. They also make bugs. And that's normal.
+Just for fun. If there wasn't any interest then nothing would happen.
 
   [meetup]: https://www.facebook.com/events/106836509655188/
   [slides]: http://alexandrnikitin.github.io/slides/generics-under-the-hood/#/
