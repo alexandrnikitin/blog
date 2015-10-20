@@ -1,31 +1,27 @@
 ---
 layout: post
-title: About tests
-date: 2015-10-19
-modified: 2015-10-19
-excerpt: About tetsts
+title: A single purpose of automated testing
+date: 2015-10-20
+modified: 2015-10-20
+excerpt: About tests
 tags: [Testing]
 comments: true
 share: true
 ---
 
 
+This post is written in reply to [the recent "Unit testing internals"][MarkSeemannPost] post by Mark Seemann and was, basically, triggered by the statement:
 
-In reply to the recent post
+>Automated testing (as opposed to manual testing) only serves a single purpose: it prevents regressions.
 
+I respect him and admire, he has huge experience in testing and does a lot to popularize testing in development culture.
+But I cannot agree with that statement.
 
+Thinking about regression during development is against nature. Developers don't think about what would happen with their code if... They think about the code they write at that moment: how to implement the feature or how not to break everything with their changes.
 
-I respect him and admire. I like the way he thinks.
+The single purpose of having tests is to have **confidence**. The confidence that the code you just wrote works. The confidence that you followed business requirements.
 
-Automated testing (as opposed to manual testing) only serves a single purpose: it prevents regressions.
-
-But I don't agree. 
-
-Confidence.
-That your code works. That you follow business requirements and write right software.
-Against nature. Developers don't think about what will happen with their code. They think about current code they write and not to break everything.
-
-We cannot code right on first time and get it right at once. The same is even more actual for test. we developers pay less attention to tests than code. I don't khow how to change that. TDD? It doesn't work. Probably only VolksWagen managed to get it work.
+We just cannot code it once and get it right on the first time. This is **even more actual** for tests. We developers pay less attention to tests than to code. Probably it isn't possible to change this attitude. TDD? But it doesn't work. Probably only [Volkswagen managed to get TDD work][Volkswagen].
 
 Experience about finding bugs because of regression. When you change your code you will change the tests too.
 
@@ -59,3 +55,6 @@ I'm good to tests internals, even I'm good to test privates if it's need to be p
 Test pyramids. There is no such.
 That could be true for huge code bases with all layers, infrastructure, integration, service, business, ui.
 
+
+  [MarkSeemannPost]: http://blog.ploeh.dk/2015/09/22/unit-testing-internals/
+  [Volkswagen]: https://en.wikipedia.org/wiki/Volkswagen_emissions_scandal
