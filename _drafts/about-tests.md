@@ -27,13 +27,6 @@ The single purpose of having tests is to have **confidence**. The confidence tha
 
 Experience about finding bugs because of regression. When you change your code you will change the tests too.
 
-So, coming back to the raised question:
-> FAQ: How should you unit test internals?
-
-A: It depends. Solely on you and your team. This is what reviews are good for: to come to one opinion and find the level of confidence that's good enough for your requirements.
-
-You absolutely good not to write any test. I'm serious. If it won't increase confidence for you or the team then don't do it. Don't waste your time, don't waste your colleagues' time. Don't do it. Test for the sake of test - they cost.
-
 
 >Automated tests can only demonstrate that the software works correctly if the tests are written correctly
 
@@ -59,8 +52,17 @@ Microservices arise, multi e2e tests that affect more than one service.
 
 I'm good to tests internals, even I'm good to test privates if it's need to be private and you need to test that. But it definitely should be an exception.
 
-Test pyramids. There is no such.
-That could be true for huge code bases with all layers, infrastructure, integration, service, business, ui.
+The Test Pyramid:
+>The test pyramid is a concept developed by Mike Cohn, described in his book Succeeding with Agile. Its essential point is that you should have many more low-level unit tests than high level end-to-end tests running through a GUI.
+
+There is no such thing as "Test Pyramid". It just happened that average project has such distribution across different type of tests< only because it's easier to write and get feedback from a unit than any other type of tests. You shouldn't keep that Pyramid in mind, you should not "have many more low-level unit tests than high level end-to-end tests running through a GUI."
+
+So, coming back to the raised question:
+> FAQ: How should you unit test internals?
+
+A: It depends. Solely on you and your team. This is what reviews are good for: to come to one opinion and find the level of confidence that's good enough for your requirements.
+
+You absolutely good not to write any test. I'm serious. If it won't increase confidence for you or the team then don't do it. Don't waste your time, don't waste your colleagues' time. Don't do it. Test for the sake of test - they cost.
 
 
   [MarkSeemannPost]: http://blog.ploeh.dk/2015/09/22/unit-testing-internals/
