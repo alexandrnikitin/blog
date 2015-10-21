@@ -3,7 +3,7 @@ layout: post
 title: A single purpose of automated testing
 date: 2015-10-21
 modified: 2015-10-21
-excerpt: About tests TBA
+excerpt: About different types of tests, their purpose and how you should test internals.
 tags: [Testing]
 comments: true
 share: true
@@ -29,7 +29,7 @@ The level of confidence depends on you, your team and requirements. This is what
 
 >Automated tests can only demonstrate that the software works correctly if the tests are written correctly
 
-All software have bugs. That's reality. If they're not in your code then they're in libraries you use, frameworks, runtimes, databases or infrastructure. They are there. You cannot change that. We just cannot code it once and get it right on the first time. This is **even more actual** for tests. We, developers, pay less attention to tests than to code. I don't know if it is even possible to change this attitude. TDD? But it doesn't work. Probably, only [Volkswagen managed to get TDD work][tdd-volkswagen].
+All software have bugs. That's reality. If they're not in your code then they're in libraries you use, frameworks, runtimes, databases or infrastructure. They are there. You cannot change that. We just cannot code it once and get it right on the first time. This is **even more actual** for tests. We, developers, pay less attention to tests than to code. I don't know if it is even possible to change this attitude. TDD? But it doesn't work. Probably, only [Volkswagen managed to get TDD work][tdd-volkswagen] :laughing:.
 
 Even if a test isn't correct then it's a bug. And that's absolutely **normal!** That's how software is made. Yes, there're tools that can help you a bit, such as test coverage tools and static and runtime analyzers. But don't even think about tests for tests.
 
@@ -41,7 +41,7 @@ I can hardly recall cases when tests helped to avoid or find regression issues. 
 
 There are many type of tests that varies by purpose, intention and scale:
 
-1. Unit tests - These verify units, the smallest piece of software. A class? I prefer to treat a method/function as a unit. This leads to more loosely coupled code. The purpose is to test a piece of code, any piece.
+1. Unit tests - These verify units, the smallest piece of software. A class? I prefer to treat a method/function as a unit. This leads to more loosely coupled code. The purpose is to test a piece of code, any piece that, in your opinion, needs to be tested.
 
 2. Component tests - These limit the scope to a component (module) and verify the business logic and how units interacts with each other. Tests performed through the public API of a component. The purpose is to test the logic the component is responsible for.
 
@@ -76,10 +76,10 @@ I often see complicated tests, sometimes the logic of tests is even more complex
 So, coming back to the raised question:
 > FAQ: How should you unit test internals?
 
-A: It depends. If we're talking about unit tests then you're good to tests internals, even more, you're good to test privates if they have to be private and you need to test the logic.
+A: It depends. If we're talking about unit tests then you're good to tests internals directly, even more, you're good to test privates if they have to be private and you need to test the logic. If we're talking about higher level tests such as Component then you shouldn't bother about internals.
 
 To finish all that:
-You absolutely OK not to write tests. I'm serious. If they won't increase confidence for you or the team then don't do it. Don't waste your time, don't waste your colleagues' time. Test for the sake of test - they cost.
+You absolutely OK not to write tests. I'm serious. There are other ways exist to mitigate consequences of bugs. If tests won't increase confidence for you or the team then don't do it. Don't waste your time, don't waste your colleagues' time. Tests for the sake of tests - they cost.
 
 
 
