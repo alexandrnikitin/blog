@@ -2,7 +2,7 @@
 layout: post
 title: Access null pointer without exception
 date: 2015-10-26
-summary:
+summary: A story about a pattern with interest, conviction, indignation and compassion in the end.
 categories: C++ CLR WTF Anti-patterns
 ---
 
@@ -10,11 +10,11 @@ categories: C++ CLR WTF Anti-patterns
 
 I want to introduce you a pattern that allows you access null pointer without any exception.
 
-### Rejection
+### Сonviction
 
 Where can you apply it? In big codebases like .NET Core CLR? Why? To make them even more complicated! of course.
 
-A question that couldn't keep in:
+A question that I couldn't keep in:
 
 ### Indignation
 
@@ -33,6 +33,7 @@ So I raised an issue on github with desire to know how it works.
 "This is by design... The null pointer is never actually dereferenced."
 After some digging I found that pattern:
 If we don't define `MULTIPLE_HEAPS` we define `PER_HEAP` as `static`
+
 ```cpp
 #ifdef MULTIPLE_HEAPS
 #define PER_HEAP
@@ -40,12 +41,16 @@ If we don't define `MULTIPLE_HEAPS` we define `PER_HEAP` as `static`
 #define PER_HEAP static
 #endif // MULTIPLE_HEAPS
 ```
+
 And in `gc_heap` class `dynamic_data_table` field becomes static:
+
 ```cpp
 PER_HEAP
 dynamic_data dynamic_data_table [NUMBERGENERATIONS+1];
 ```
+
 Taking into account that we inline the `dynamic_data_of` method:
+
 ```cpp
 inline
 dynamic_data* gc_heap::dynamic_data_of (int gen_number)
@@ -53,7 +58,9 @@ dynamic_data* gc_heap::dynamic_data_of (int gen_number)
     return &dynamic_data_table [ gen_number ];
 }
 ```
+
 everything works...
+
 :see_no_evil:
 
 
