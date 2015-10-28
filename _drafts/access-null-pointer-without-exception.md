@@ -10,7 +10,7 @@ categories: C++ CLR WTF Anti-patterns
 
 I want to introduce you a pattern that allows you access null pointer without any exception.
 
-### 
+### Conviction
 
 Where can you apply it? In big codebases like .NET Core CLR? Why? To make them even more complicated! of course.
 
