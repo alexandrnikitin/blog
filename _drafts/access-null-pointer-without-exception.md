@@ -4,10 +4,12 @@ title: Access null pointer without exception
 date: 2015-10-26
 modified: 2015-10-26
 excerpt: A story about a pattern with interest, conviction, indignation and compassion in the end.
-tags: C++ CLR WTF Anti-patterns
+tags: [C++, CLR, WTF, Anti-patterns]
 comments: true
 share: true
 ---
+
+_Note: Uneducated view of a .NET developer on the quintessence of computer science. :blush:_
 
 ### Interest
 
