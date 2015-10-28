@@ -1,8 +1,8 @@
 ---
 layout: post
 title: Access null pointer without exception
-date: 2015-10-26
-modified: 2015-10-26
+date: 2015-10-28
+modified:
 excerpt: A story about a pattern, with interest, conviction, rejection and compassion in the end.
 tags: [C++, CLR, WTF, Anti-patterns]
 comments: true
@@ -15,7 +15,7 @@ _Note: Uneducated view of a .NET developer on the quintessence of computer scien
 
 I want to introduce you a pattern that allows you to access a null pointer without any exception. Excited? Me too!
 
-Imaging you have a class and some data that you want to access regardless of a pointer. For the sake of the concocted example and to present the pattern... :grimacing: well, you need to mark the field and the "getter" method as `static`, in addition mark the "getter" method with `inline` keyword.
+Imaging, you have a class and some data that you want to access regardless of a pointer. For the sake of the concocted example and to present the pattern... :grimacing: well, you need to mark the field and the "getter" method as `static`, in addition mark the "getter" method with `inline` keyword.
 
 ```cpp
 class MyConcoctedClass
@@ -44,7 +44,8 @@ int main()
 
 ### Conviction
 
-Where can you apply it? In big codebases, of course, and .NET Core CLR fits really well. Why? To make it even more complicated! :japanese_ogre:
+Where can you apply it? In complex codebases, of course, and .NET Core CLR fits really well. Why? DRY, optimization, you name. _(To make it even more complicated!)_ :japanese_ogre:
+
 Let's take a look at the Garbage Collection code in [gc.cpp][gc.cpp] which is more than 36K lines of code, 36K LOC of the pure quintessence of computer science! Scroll down to the line number 34463, where you will find the following code:
 
 ```cpp
@@ -65,9 +66,9 @@ GCHeap::GarbageCollectGeneration (unsigned int gen, gc_reason reason)
 ...
 ```
 
-Attentive reader will notice that if `MULTIPLE_HEAPS` isn't defined then the `hpt` pointer is null. But we access it a few lines below.
+The attentive reader will notice that if `MULTIPLE_HEAPS` isn't defined then the `hpt` pointer is null. But we access it a few lines below.
 
-So I raised [an issue on github][issue] with desire to know how it works. "This is by design," they answered, "The null pointer is never actually dereferenced." After some more digging I found that lovely pattern.
+So I raised [an issue on github][issue] with desire to know how it works. "This is by design," they answered, "The null pointer is never actually dereferenced." After some more digging, I found the lovely pattern I described above.
 
 If we don't define `MULTIPLE_HEAPS` we define `PER_HEAP` as `static` in [gcimpl.h][gcimpl.h]
 
@@ -106,13 +107,13 @@ A question arose that I cannot keep in:
 
 > Guys, how do you work on that codebase?????
 
-I imagined the Garbage Collection as the edge of technologies, the masterpiece. I wanted to admire the code and learn from it. Instead I drown in a swamp of directives. I could understand if it would be "linux or windows" case. "DRY!" you say, but it's better to repeat. "Optimizations!" you would object, but I won't believe. I have strong .NET background and that's far away from common. Abusing directives? I consider it as ugly code which is unreadable and leads only to bugs.
+I imagined the Garbage Collection as the edge of technologies, the masterpiece. I wanted to admire the code and learn from it. Instead I drown in a swamp of directives. I can understand if it would be "linux or windows" case. "DRY!" you say, but it's better to repeat, "Optimizations!" you would object, but I won't believe. I have strong .NET background and that's far away from common. I consider it as ugly code which is unreadable and leads only to bugs.
 
-A colleague of mine once said, "Maybe you don't know how to read that code?!" Maybe I don't.
+A colleague of mine once said, "Maybe you don't know how to read that code?!" Maybe I don't, so that I keep learning.
 
 ### Compassion
 
-TBA
+TBA :worried:
 
   [gc.cpp]: https://raw.githubusercontent.com/dotnet/coreclr/release/1.0.0-rc1/src/gc/gc.cpp
   [issue]: https://github.com/dotnet/coreclr/issues/1860
