@@ -3,7 +3,7 @@ layout: post
 title: Access null pointer without exception
 date: 2015-10-26
 modified: 2015-10-26
-excerpt: A story about a pattern with interest, conviction, indignation and compassion in the end.
+excerpt: A story about a pattern, with interest, conviction, rejection and compassion in the end.
 tags: [C++, CLR, WTF, Anti-patterns]
 comments: true
 share: true
@@ -45,7 +45,7 @@ int main()
 ### Conviction
 
 Where can you apply it? In big codebases, of course, and .NET Core CLR fits really well. Why? To make it even more complicated! :japanese_ogre:
-Let's take a look at the Garbage Collector code in [gc.cpp][gc.cpp] which is more than 36K lines of code, 36K LOC of the pure quintessence of computer science! Scroll down to the line number 34463, where you will find the following code:
+Let's take a look at the Garbage Collection code in [gc.cpp][gc.cpp] which is more than 36K lines of code, 36K LOC of the pure quintessence of computer science! Scroll down to the line number 34463, where you will find the following code:
 
 ```cpp
 ...
@@ -100,15 +100,15 @@ everything works...
 
 :see_no_evil:
 
-A question that I couldn't keep in...
+A question arose that I cannot keep in:
 
-### Indignation
+### Rejection
 
-Guys, how do you work on that codebase?????
+> Guys, how do you work on that codebase?????
 
-I have extensive .NET background and that's far away from common. Abusing directives. I could understand if it would be linux or win. I consider it as ugly code. Unreadable and leads to bugs.
-DRY?
-Is it common in C++ world?
+I imagined the Garbage Collection as the edge of technologies, the masterpiece. I wanted to admire the code and learn from it. Instead I drown in a swamp of directives. I could understand if it would be "linux or windows" case. "DRY!" you say, but it's better to repeat. "Optimizations!" you would object, but I won't believe. I have strong .NET background and that's far away from common. Abusing directives? I consider it as ugly code which is unreadable and leads only to bugs.
+
+A colleague of mine once said, "Maybe you don't know how to read that code?!" Maybe I don't.
 
 ### Compassion
 
