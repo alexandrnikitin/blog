@@ -6,8 +6,23 @@ summary:
 categories: C++ CLR WTF Anti-patterns
 ---
 
-a pattern I encounter recently
+### Interest
 
+I want to introduce you a pattern that allows you access null pointer without any exception.
+
+### Rejection
+
+Where can you apply it? In big codebases like .NET Core CLR? Why? To make them even more complicated! of course.
+
+A question that couldn't keep in:
+
+### Indignation
+
+Guys, how do you work on that codebase?????
+
+### Compassion
+
+TBA
 
 https://github.com/dotnet/coreclr/issues/1860
 
@@ -41,7 +56,6 @@ dynamic_data* gc_heap::dynamic_data_of (int gen_number)
 everything works...
 :see_no_evil:
 
-A question that couldn't keep in: Guys, how do you work on that codebase?????
 
 
 I have extensive .NET background and that's far away from common. Abusing directives. I could understand if it would be linux or win. I consider it as ugly code. Unreadable and leads to bugs.
