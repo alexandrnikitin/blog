@@ -44,8 +44,8 @@ int main()
 
 ### Conviction
 
-Where can you apply it? In big codebases, of course, and .NET Core CLR fits really good. Why? To make them even more complicated! TODO!
-Let's take a look at the Garbage Collector code in [gc.cpp][gc.cpp] which is more than 36K lines of code. Scroll down to the line number 34464 where you will find the following code:
+Where can you apply it? In big codebases, of course, and .NET Core CLR fits really well. Why? To make it even more complicated! :japanese_ogre:
+Let's take a look at the Garbage Collector code in [gc.cpp][gc.cpp] which is more than 36K lines of code, 36K LOC of the pure quintessence of computer science! Scroll down to the line number 34463, where you will find the following code:
 
 ```cpp
 ...
@@ -65,11 +65,11 @@ GCHeap::GarbageCollectGeneration (unsigned int gen, gc_reason reason)
 ...
 ```
 
-Attentive reader will notice that if `MULTIPLE_HEAPS` isn't defined then the `hpt` pointer is null. But we access it a few lines latter.
+Attentive reader will notice that if `MULTIPLE_HEAPS` isn't defined then the `hpt` pointer is null. But we access it a few lines below.
 
-So I raised [an issue on github][issue] with desire to know how it works. "This is by design," they pointed me, "The null pointer is never actually dereferenced." After some more digging I found that lovely pattern.
+So I raised [an issue on github][issue] with desire to know how it works. "This is by design," they answered, "The null pointer is never actually dereferenced." After some more digging I found that lovely pattern.
 
-If we don't define `MULTIPLE_HEAPS` we define `PER_HEAP` as `static` in TODO
+If we don't define `MULTIPLE_HEAPS` we define `PER_HEAP` as `static` in [gcimpl.h][gcimpl.h]
 
 ```cpp
 #ifdef MULTIPLE_HEAPS
@@ -79,14 +79,14 @@ If we don't define `MULTIPLE_HEAPS` we define `PER_HEAP` as `static` in TODO
 #endif // MULTIPLE_HEAPS
 ```
 
-In that case `dynamic_data_table` field in `gc_heap` class becomes static: TODO
+In that case `dynamic_data_table` field in [`gc_heap` class][gcpriv.h-static] becomes static:
 
 ```cpp
 PER_HEAP
 dynamic_data dynamic_data_table [NUMBERGENERATIONS+1];
 ```
 
-Taking into account that we inline the `dynamic_data_of` method:
+Taking into account that we inline [the `dynamic_data_of` method][gcpriv.h-inline]:
 
 ```cpp
 inline
@@ -116,3 +116,6 @@ TBA
 
   [gc.cpp]: https://raw.githubusercontent.com/dotnet/coreclr/release/1.0.0-rc1/src/gc/gc.cpp
   [issue]: https://github.com/dotnet/coreclr/issues/1860
+  [gcimpl.h]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/gc/gcimpl.h#L22
+  [gcpriv.h-static]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/gc/gcpriv.h#L3431
+  [gcpriv.h-inline]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/gc/gcpriv.h#L4276
