@@ -11,8 +11,34 @@ share: true
 
 ### Interest
 
-I want to introduce you a pattern that allows you access null pointer without any exception. Excited? Me too!
+I want to introduce you a pattern that allows you to access a null pointer without any exception. Excited? Me too!
 
+Imaging you have a class and some data that you want to access regardless of a pointer. For the sake of the concocted example and to present the pattern... :grimacing: well, you need to mark the field and the "getter" method as `static`, in addition mark the "getter" method with `inline` keyword.
+
+```cpp
+class MyConcoctedClass
+{
+	static int get_data();
+	static int data;
+};
+
+int MyConcoctedClass::data;
+
+inline int MyConcoctedClass::get_data()
+{
+	return data;
+}
+```
+
+Voila! You can access the data without any errors:
+
+```cpp
+int main()
+{
+	MyConcoctedClass* myClass = 0;
+	myClass->get_data;
+}
+```
 
 ### Conviction
 
