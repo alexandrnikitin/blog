@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Inside CLR: Object allocations
+title: "Inside CLR: Object allocations"
 date: 2015-10-26
 summary:
 categories: .NET CLR
