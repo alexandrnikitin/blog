@@ -2,7 +2,7 @@
 layout: post
 title: "HOWTO: Check JIT Inlining"
 date: 2015-11-21T15:33:28+02:00
-modified:
+modified: 2015-11-23T12:06:00+02:00
 categories: [.NET, CLR, JIT]
 excerpt: A short HOWTO check whether methods were inlined by JIT or not, and why not.
 tags: [.NET, CLR, JIT, Optimizations]
@@ -97,9 +97,14 @@ foreach (var e in root.Elements()
 }
 ```
 
+Do you want to have more sophisticated analysis? Take a look at [Microsoft TraceEvent Library][nuget-traceevent].  
+You can find [the samples and docs on github][github-traceevent].
+
+
 #### Entertainment
 
-  A story about JIT-x86 inlining and starg [on Andrey Akinshin's blog][story]
+"A story about JIT-x86 inlining and starg" [on Andrey Akinshin's blog][story]
+
 
 
   [msdn-jitevents]: https://msdn.microsoft.com/library/ff356158(v=vs.100).aspx
@@ -110,3 +115,5 @@ foreach (var e in root.Elements()
   [msdn-providers]: https://msdn.microsoft.com/en-us/library/ff357718(v=vs.100).aspx
   [scriptcs]: http://scriptcs.net/
   [story]: http://aakinshin.net/en/blog/dotnet/inlining-and-starg/
+  [nuget-traceevent]: https://www.nuget.org/packages/Microsoft.Diagnostics.Tracing.TraceEvent/
+  [github-traceevent]: https://github.com/Microsoft/dotnetsamples/blob/master/Microsoft.Diagnostics.Tracing/TraceEvent/docs/TraceEvent.md
