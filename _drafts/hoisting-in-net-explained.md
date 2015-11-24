@@ -29,39 +29,99 @@ From numerous of optimizations, It has hoisting optimization too.
 The entry point void Compiler::optHoistLoopCode()
 
 
-// We must have a do-while loop
-if ((pLoopDsc->lpFlags & LPFLG_DO_WHILE) == 0)
-    return;
+traverses all the loop nests, in outer-to-inner order
+
+optHoistThisLoop
+
+It should be a "do-while" loop. That doesn't mean exact `do {} while ()` loop in your code.
+That means that the compiler can be sure that the loop will be executed at least once and condition can be check at the end of an iteration.
+
+It shouldn't start from a try block. the compiler won't optimize.
+And it won't bother hoisting when inside of a catch block.
 
 
-// If DO-WHILE loop mark it as such.
-if (head->bbNext == entry)
-{
-    optLoopTable[loopInd].lpFlags |= LPFLG_DO_WHILE;
-}
+Each method is represented as a doubly-linked list of BasicBlock objects.
+BasicBlock nodes contain a list of doubly-linked statements.
+Block is a method's building unit, a sequence of commands .
+
+Then JIT tries to find the set of definitely-executed blocks. todo what's block?
+If a loop has only one exit then we take all blocks.
+If a loop has more than one exits then we take only first entry block because assume that the entry block is definitely executed.
+
+Then iterate over blocks
+Check block's weight
+
+Iterate over block's statement expressions
+Then the compiler tries to hoist statement expressions in block that are invariant in loop.
+bool Compiler::optHoistLoopExprsForTree
 
 
-// Try to find loops that have an iterator (i.e. for-like loops) "for (init; test; incr){ ... }"
-// We have the following restrictions:
-//     1. The loop condition must be a simple one i.e. only one JTRUE node
-//     2. There must be a loop iterator (a local var) that is
-//        incremented (decremented or lsh, rsh, mul) with a constant value
-//     3. The iterator is incremented exactly once
-//     4. The loop condition must use the iterator.
+Check tree of expressions
+
+In addition check:
+
+// Tree must be a suitable CSE candidate for us to be able to hoist it.
+Common Subexpression Elimination (CSE) - identifies redundant computations, which are then evaluated to a new temp lvlVar, and then reused.
+Checks is it worth to introduce a new temp variable or not.
+
+Not if expression contains explicit assignment operator
+
+No for structs and void?
+
+Do not support float for x86, but x86 isn't supported, so that not relevant.
+#ifdef _TARGET_X86_
+    if (type == TYP_FLOAT)
+    {
+        // TODO-X86-CQ: Revisit this
+        // Don't CSE a TYP_FLOAT on x86 as we currently can only enregister doubles
+        return false;
+    }
 
 
 
-// if lbeg is the start of a new try block then we won't be able to hoist
-if (!BasicBlock::sameTryRegion(head, lbeg))
-    return;
+Do not support double/float constant 'dconst' il
 
-// We don't bother hoisting when inside of a catch block
-if ((lbeg->bbCatchTyp != BBCT_NONE) && (lbeg->bbCatchTyp != BBCT_FINALLY))
-    return;
+    if (oper == GT_CNS_DBL)
+    {
+        // TODO-CQ: Revisit this
+        // Don't try to CSE a GT_CNS_DBL as they can represent both float and doubles
+        return false;
+    }
 
 
 
-FP treated separately
+expression code size cost
+expression code execution cost
+
+
+
+The compiler supports call operations, but only calls to internal JIT helper methods.
+Generally all call operations are considered to have side-effects.
+But we may have a helper call that doesn't have any important side effects.
+The list of helper functions defined [here][github-helpers-list] and [their implementations][github-helpers].
+So that some helper methods are considered as side-effects free.
+[The logic behind][github-helpers-sideeffect]
+
+
+The compiler can optimizer operation on constants,
+array's element and length, local variables access, some unary and binary operators,
+casts, comparison operators, math functions.
+
+
+
+
+ For now, we give up on an expression that might raise an exception if it is after the
+
+
+ // Currently we must give up on reads from static variables (even if we are in the first block).
+ contradiction with operations, issue?
+
+
+Check if hoisting is profitable based on available registers.
+optIsProfitableToHoistableTree
+
+
+// TODO FP treated separately
 
 if (floatVarsCount > 0)
 {
@@ -86,129 +146,9 @@ else // (floatVarsCount == 0)
 
 
 
-Only one exit
-if (pLoopDsc->lpFlags & LPFLG_ONE_EXIT)
-
-
-
-
-else  // More than one exit
-{
-    // We'll assume that only the entry block is definitely executed.  
-    // We could in the future do better.
-    defExec.Push(pLoopDsc->lpEntry);
-}
-
-Check only entry block
-
-
-
-Weight
-
-
-
-bool Compiler::optHoistLoopExprsForTree
-
-
-Check tree of expressions
-
-In addition check:
-
-// Tree must be a suitable CSE candidate for us to be able to hoist it.
-treeIsHoistable = optIsCSEcandidate(tree);
-
-
-Assignments or GTF_DONT_CSE
-if  (tree->gtFlags & (GTF_ASG|GTF_DONT_CSE))
-{
-    return  false;
-}
-
-
-if (type == TYP_STRUCT || type == TYP_VOID)
-    return false;
-
-
-#ifdef _TARGET_X86_
-    if (type == TYP_FLOAT)
-    {
-        // TODO-X86-CQ: Revisit this
-        // Don't CSE a TYP_FLOAT on x86 as we currently can only enregister doubles
-        return false;
-    }
-#else
-    if (oper == GT_CNS_DBL)
-    {
-        // TODO-CQ: Revisit this
-        // Don't try to CSE a GT_CNS_DBL as they can represent both float and doubles
-        return false;
-    }
-#endif
-
-
-
-expression code size cost
-expression code execution cost
-
-
-/* Check for some special cases */
-
-switch (oper)
-{
-case GT_CALL:        
-// If we have a simple helper call with no other persistent side-effects
-// then we allow this tree to be a CSE candidate
-//
-if (gtTreeHasSideEffects(tree, GTF_PERSISTENT_SIDE_EFFECTS_IN_CSE) == false)
-{
-    return true;
-}
-else
-{
-    // Calls generally cannot be CSE-ed
-    return false;
-}
-
-operations on
-
-1. calls
-Only JIT helper calls
-  mutates heap
-  cctor
-  throw
-  // If this is a Pure helper call or an allocator (that will not need to run a finalizer)
-
-Check arguments too
-
-
-2. constants
-
-array oper
-
-static
-field
-
-// Can't CSE a volatile LCL_VAR
-
-
- // CSE these Binary Operators
-
- Comparison
-
- Math
-
-
- // For now, we give up on an expression that might raise an exception if it is after the
-
-
- // Currently we must give up on reads from static variables (even if we are in the first block).
- contradiction with operations, issue?
-
-
-optIsProfitableToHoistableTree
-registers
-
-
   [compiler-compCompile]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/compiler.cpp#L2990
   [github-docs-lch]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#loop-invariant-code-hoisting
   [google-hoisting]: https://www.google.com/?q=Hoisting+.NET
+  [github-helpers-list]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/inc/corinfo.h#L266
+  [github-helpers]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/vm/jithelpers.cpp
+  [github-helpers-sideeffect]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/gentree.cpp#L10792
