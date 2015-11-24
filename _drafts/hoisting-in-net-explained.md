@@ -10,6 +10,25 @@ comments: true
 share: true
 ---
 
+The documentation page has a short description of the Loop Code Hoisting. The knowledge that such kind of optimizations exist is already enough for development.
+Searching [Google for hoisting][google-hoisting] doesn't show anything. But trivial examples of hoisting length of array and a lot of javascipt.
+
+But we want to dig deeper, right?
+
+The main entry point
+
+It goes through the operations of
+// importing, morphing, optimizations and code generation.  This is called from the EE through the
+// code:CILJit::compileMethod function.  
+
+[compiler-compCompile]
+
+
+From numerous of optimizations, It has hoisting optimization too.
+
+The entry point void Compiler::optHoistLoopCode()
+
+
 // We must have a do-while loop
 if ((pLoopDsc->lpFlags & LPFLG_DO_WHILE) == 0)
     return;
@@ -191,3 +210,5 @@ registers
 
 
   [compiler-compCompile]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/compiler.cpp#L2990
+  [github-docs-lch]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#loop-invariant-code-hoisting
+  [google-hoisting]: https://www.google.com/?q=Hoisting+.NET
