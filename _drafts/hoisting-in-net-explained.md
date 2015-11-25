@@ -10,10 +10,48 @@ comments: true
 share: true
 ---
 
-The documentation page has a short description of the Loop Code Hoisting. The knowledge that such kind of optimizations exist is already enough for development.
-Searching [Google for hoisting][google-hoisting] doesn't show anything. But trivial examples of hoisting length of array and a lot of javascipt.
+### Prelude
 
+[__"Hoisting"__][wiki-hoisting] is a compiler optimization that moves loop-invariant code out of loops. __"Loop-invariant code"__ is code that is [referentially transparent][wiki-reftransparency] to the loop and can be replaced with its values, so that it doesn't change the semantic of the loop. This optimization improves run-time performance by executing the code only once rather than at each iteration.
+
+Let's take a look at the following example:
+
+```csharp
+public void Update(int[] arr, int x, int y)
+{
+    for (var i = 0; i < arr.Length; i++)
+    {
+        arr[i] = x + y;
+    }
+}
+```
+
+There's no point to calculate array length at each iteration, it won't change. And the sum operation's result on `x` and `y` will always be the same at each iteration. So that the code can be optimized in the following way:
+
+```csharp
+public void Update(int[] arr, int x, int y)
+{
+    var temp = x + y;
+    var length = arr.Length;
+    for (var i = 0; i < length; i++)
+    {
+        arr[i] = temp;
+    }
+}
+```
+
+These two methods are semantically the same and produce the same effect. That movement of some statements is called "hoisting".
+
+
+### JIT
+
+Good new everyone!!! JIT performs such optimization for us!!! The knowledge that such kind of optimizations exist is already enough for development.
 But we want to dig deeper, right?
+
+Unfortunately, there's no information in internet at all. Searching [Google for "hoisting .NET"][google-hoisting] doesn't show anything. But trivial examples of hoisting length of array and a lot of JavaScript. MSDN keep silent too.
+There's a documentation page that has a short description of [the Loop Code Hoisting.][github-docs-lch]
+
+
 
 The main entry point
 
@@ -115,7 +153,7 @@ casts, comparison operators, math functions.
 
  // Currently we must give up on reads from static variables (even if we are in the first block).
  contradiction with operations, issue?
-
+[github-staticvars]
 
 Check if hoisting is profitable based on available registers.
 optIsProfitableToHoistableTree
@@ -144,6 +182,25 @@ else // (floatVarsCount == 0)
 }
 
 
+### Examples
+
+The fun part.
+
+array length
+
+try block
+
+var
+
+static
+
+jit helper
+
+not do while loop
+
+structs
+
+many exits
 
 
   [compiler-compCompile]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/compiler.cpp#L2990
@@ -152,3 +209,7 @@ else // (floatVarsCount == 0)
   [github-helpers-list]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/inc/corinfo.h#L266
   [github-helpers]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/vm/jithelpers.cpp
   [github-helpers-sideeffect]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/gentree.cpp#L10792
+  [github-staticvars]: https://github.com/dotnet/coreclr/issues/2157
+  [wiki-hoisting]: https://en.wikipedia.org/wiki/Loop-invariant_code_motion
+  [wiki-basicblocks]: https://en.wikipedia.org/wiki/Basic_block
+  [wiki-reftransparency]: https://en.wikipedia.org/wiki/Referential_transparency
