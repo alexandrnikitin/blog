@@ -45,12 +45,14 @@ These two methods are semantically the same and produce the same effect. That mo
 
 ### JIT
 
-Good new everyone!!! JIT performs such optimization for us!!! The knowledge that such kind of optimizations exist is already enough for development.
+![Good news everyone!]({{ site.url }}/images/hoisting-in-net-explained/good-news.jpg)
+
+JIT performs the hoisting optimization for us!!!
+
+Unfortunately, there's no information on the internet at all. Searching [Google for "hoisting .NET"][google-hoisting] doesn't show anything, but trivial examples of hoisting length of array and a lot of JavaScript. MSDN keep silent too. There's the RyuJIT overview page on github that has a short description of [the Loop Code Hoisting.][github-docs-lch]
+
+The knowledge that such kind of optimizations exist is already enough for development.
 But we want to dig deeper, right?
-
-Unfortunately, there's no information in internet at all. Searching [Google for "hoisting .NET"][google-hoisting] doesn't show anything. But trivial examples of hoisting length of array and a lot of JavaScript. MSDN keep silent too.
-There's a documentation page that has a short description of [the Loop Code Hoisting.][github-docs-lch]
-
 
 
 The main entry point
