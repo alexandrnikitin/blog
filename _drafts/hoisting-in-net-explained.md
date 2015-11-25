@@ -60,33 +60,33 @@ The fact that the hoisting optimization exists in JIT is already good enough to 
 
 ### The sources
 
-I didn't have a clue about where to start, so that I started from the main JIT function, namely [`CILJit::compileMethod` function][github-compiler-compilemethod], went down the call stack to the interesting part in [the `Compiler::compCompile` method][github-compiler-compcompile]. It's the main entry point and the place where all magic happens. It consists of [a lot of JIT phases][github-jitphases], from initialization and importing to optimizations and code generation.
-From numerous of optimizations, there is hoisting optimization there.
+I didn't have a clue about where to start, so that I started from the main JIT function, namely [`CILJit::compileMethod` function][github-compiler-compilemethod], went down the call stack to the interesting part in [the `Compiler::compCompile` method][github-compiler-compcompile]. It's the main entry point and the place where all magic happens. It consists of [a lot of JIT phases][github-jitphases], from initialization and expression tree generation, to optimizations and code generation. From numerous of optimizations, there is the hoisting optimization too.
 
-The entry point void Compiler::optHoistLoopCode()
+The entry point for it is [`Compiler::optHoistLoopCode()`][github-optimizer-optHoistLoopCode]
+It traverses all the loop nests, from the outer loop to the inner one.
+
+The next interesting method is [`Compiler::optHoistThisLoop`][github-optimizer-optHoistThisLoop] that works with one loop at a time, it picks out only those that suits certain conditions:
+
+* The loop should be a __"do-while"__ loop. This doesn't mean exactly `do {} while ()` keywords in your code. But that implies that the compiler knows that the loop will definitely be executed and conditions will be check at the end of an iteration. "For" loops will be transformed to do-while ones if possible.
+* The loop shouldn't start from a `try {} catch {}` block. The compiler won't optimize it.
+* The compiler won't bother optimizing code inside of a `catch {}` block.
+
+TODO dominates
+
+>And now we come close to what's called Basic Blocks. [__A Basic Block__][wiki-basicblocks] is an analysis unit for the compiler, a sequence of code with exactly one entry point and exactly one exit point. Whenever we enter a basic block, the code sequence is executed exactly once and in order. Each method is represented as a doubly linked list of basic blocks.
+
+If the loop suits the conditions we continue with its content, namely the basic blocks. The compiler tries to find the set of definitely-executed basic blocks.
+If the loop has only one exit then we take all [post-dominator][wiki-dominator] blocks for further analysis. If the loop has more than one exits then we take only __the first__ "entry" basic block because we assume that the entry block is definitely executed.
+
+Then we iterate over selected blocks.
+
+The compiler check block's weight TODO
 
 
-traverses all the loop nests, in outer-to-inner order
 
-optHoistThisLoop
-
-It should be a "do-while" loop. That doesn't mean exact `do {} while ()` loop in your code.
-That means that the compiler can be sure that the loop will be executed at least once and condition can be check at the end of an iteration.
-
-It shouldn't start from a try block. the compiler won't optimize.
-And it won't bother hoisting when inside of a catch block.
-
-
-Each method is represented as a doubly-linked list of BasicBlock objects.
 BasicBlock nodes contain a list of doubly-linked statements.
 Block is a method's building unit, a sequence of commands .
 
-Then JIT tries to find the set of definitely-executed blocks. todo what's block?
-If a loop has only one exit then we take all blocks.
-If a loop has more than one exits then we take only first entry block because assume that the entry block is definitely executed.
-
-Then iterate over blocks
-Check block's weight
 
 Iterate over block's statement expressions
 Then the compiler tries to hoist statement expressions in block that are invariant in loop.
@@ -201,11 +201,20 @@ structs
 
 many exits
 
+  [github-docs-lch]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#loop-invariant-code-hoisting
+  [google-hoisting]: https://www.google.com/search?q=Hoisting+.NET
+
   [github-compiler-compilemethod]: https://github.com/dotnet/coreclr/blob/master/src/jit/ee_il_dll.cpp#L140
   [github-compiler-compcompile]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/compiler.cpp#L2990
+
   [github-jitphases]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#phases-of-ryujit
-  [github-docs-lch]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#loop-invariant-code-hoisting
-  [google-hoisting]: https://www.google.com/?q=Hoisting+.NET
+
+  [github-optimizer-optHoistLoopCode]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/optimizer.cpp#L5401
+  [github-optimizer-optHoistThisLoop]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/optimizer.cpp#L5554
+
+
+
+
   [github-helpers-list]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/inc/corinfo.h#L266
   [github-helpers]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/vm/jithelpers.cpp
   [github-helpers-sideeffect]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/gentree.cpp#L10792
@@ -214,3 +223,4 @@ many exits
   [wiki-hoisting]: https://en.wikipedia.org/wiki/Loop-invariant_code_motion
   [wiki-basicblocks]: https://en.wikipedia.org/wiki/Basic_block
   [wiki-reftransparency]: https://en.wikipedia.org/wiki/Referential_transparency
+  [wiki-dominator]: https://en.wikipedia.org/wiki/Dominator_(graph_theory)
