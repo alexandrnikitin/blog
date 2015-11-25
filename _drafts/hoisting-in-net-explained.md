@@ -140,27 +140,9 @@ optIsProfitableToHoistableTree
 
 
 
-P.S. Thank you for your time! I hope you found the post interesting and useful. There will be the part 2 with a bunch of examples. If you have an interesting case that you want to share or analyze, then you can send it to me to nikitin.alexandr.a at gmail.
+_P.S. Thank you for your time! I hope you found the post interesting and useful. There will be the part 2 with a bunch of examples. If you have an interesting case that you want to share or analyze, then you can send it to me to nikitin.alexandr.a at gmail._
 
-### Examples
 
-The fun part.
-
-array length
-
-try block
-
-var
-
-static
-
-jit helper
-
-not do while loop
-
-structs
-
-many exits
 
   [github-docs-lch]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#loop-invariant-code-hoisting
   [google-hoisting]: https://www.google.com/search?q=Hoisting+.NET
