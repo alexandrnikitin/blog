@@ -60,16 +60,8 @@ The fact that the hoisting optimization exists in JIT is already good enough to 
 
 ### The sources
 
-The main entry point
-
-It goes through the operations of
-// importing, morphing, optimizations and code generation.  This is called from the EE through the
-// code:CILJit::compileMethod function.  
-
-[compiler-compCompile]
-
-
-From numerous of optimizations, It has hoisting optimization too.
+I didn't have a clue about where to start, so that I started from the main JIT function, namely [`CILJit::compileMethod` function][github-compiler-compilemethod], went down the call stack to the interesting part in [the `Compiler::compCompile` method][github-compiler-compcompile]. It's the main entry point and the place where all magic happens. It consists of [a lot of JIT phases][github-jitphases], from initialization and importing to optimizations and code generation.
+From numerous of optimizations, there is hoisting optimization there.
 
 The entry point void Compiler::optHoistLoopCode()
 
@@ -209,14 +201,16 @@ structs
 
 many exits
 
-
-  [compiler-compCompile]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/compiler.cpp#L2990
+  [github-compiler-compilemethod]: https://github.com/dotnet/coreclr/blob/master/src/jit/ee_il_dll.cpp#L140
+  [github-compiler-compcompile]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/compiler.cpp#L2990
+  [github-jitphases]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#phases-of-ryujit
   [github-docs-lch]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#loop-invariant-code-hoisting
   [google-hoisting]: https://www.google.com/?q=Hoisting+.NET
   [github-helpers-list]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/inc/corinfo.h#L266
   [github-helpers]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/vm/jithelpers.cpp
   [github-helpers-sideeffect]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/gentree.cpp#L10792
   [github-staticvars]: https://github.com/dotnet/coreclr/issues/2157
+
   [wiki-hoisting]: https://en.wikipedia.org/wiki/Loop-invariant_code_motion
   [wiki-basicblocks]: https://en.wikipedia.org/wiki/Basic_block
   [wiki-reftransparency]: https://en.wikipedia.org/wiki/Referential_transparency
