@@ -10,10 +10,14 @@ comments: true
 share: true
 ---
 
+_Note: TODO RyuJIT related_
+
+
 ### Prelude
 
 [__"Hoisting"__][wiki-hoisting] is a compiler optimization that moves loop-invariant code out of loops. __"Loop-invariant code"__ is code that is [referentially transparent][wiki-reftransparency] to the loop and can be replaced with its values, so that it doesn't change the semantic of the loop. This optimization improves run-time performance by executing the code only once rather than at each iteration.
 
+#### An example
 Let's take a look at the following example:
 
 ```csharp
@@ -26,7 +30,7 @@ public void Update(int[] arr, int x, int y)
 }
 ```
 
-There's no point to calculate array length at each iteration, it won't change. And the sum operation's result on `x` and `y` will always be the same at each iteration. So that the code can be optimized in the following way:
+There's no point to calculate array's length at each iteration, it won't change and we can consider that code as loop-invariant one. The result of sum operation  of `x` and `y` will always be the same at each iteration. So that the code can be optimized and moved out of the loop in the following way:
 
 ```csharp
 public void Update(int[] arr, int x, int y)
@@ -40,20 +44,21 @@ public void Update(int[] arr, int x, int y)
 }
 ```
 
-These two methods are semantically the same and produce the same effect. That movement of some statements is called "hoisting".
+These two methods are semantically the same and produce the same effect. That movement of some statements is called __"hoisting"__.
 
 
-### JIT
+### What does JIT have to do with it?
+
+Everything it can! And it does! JIT performs the hoisting optimization for us and even better us!!!
+
 
 ![Good news everyone!]({{ site.url }}/images/hoisting-in-net-explained/good-news.jpg)
 
-JIT performs the hoisting optimization for us!!!
+Unfortunately, there's no information on the internet at all. Searching [Google for "hoisting .NET"][google-hoisting] doesn't show anything, but trivial examples of hoisting a length of an array and a lot of JavaScript. MSDN keep silent too. There's the RyuJIT overview page on github that has a short description of [the "Loop Code Hoisting".][github-docs-lch]
+The fact that the hoisting optimization exists in JIT is already good enough to know. But good enough isn't enough, right? We're lucky ones, we have the sources of CoreCLR! Let's take a look at what is there.
 
-Unfortunately, there's no information on the internet at all. Searching [Google for "hoisting .NET"][google-hoisting] doesn't show anything, but trivial examples of hoisting length of array and a lot of JavaScript. MSDN keep silent too. There's the RyuJIT overview page on github that has a short description of [the Loop Code Hoisting.][github-docs-lch]
 
-The knowledge that such kind of optimizations exist is already enough for development.
-But we want to dig deeper, right?
-
+### The sources
 
 The main entry point
 
