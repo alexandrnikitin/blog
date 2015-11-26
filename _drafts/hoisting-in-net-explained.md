@@ -10,9 +10,6 @@ comments: true
 share: true
 ---
 
-_Note: TODO RyuJIT related_
-
-
 ### Prelude
 
 [__"Hoisting"__][wiki-hoisting] is a compiler optimization that moves loop-invariant code out of loops. __"Loop-invariant code"__ is code that is [referentially transparent][wiki-reftransparency] to the loop and can be replaced with its values, so that it doesn't change the semantic of the loop. This optimization improves run-time performance by executing the code only once rather than at each iteration.
@@ -65,84 +62,75 @@ I didn't have a clue about where to start, so that I started from the main JIT f
 The entry point for it is [`Compiler::optHoistLoopCode()`][github-optimizer-optHoistLoopCode]
 It traverses all the loop nests, from the outer loop to the inner one.
 
+#### Examine the loop
+
 The next interesting method is [`Compiler::optHoistThisLoop`][github-optimizer-optHoistThisLoop] that works with one loop at a time, it picks out only those that suits certain conditions:
 
-* The loop should be a __"do-while"__ loop. This doesn't mean exactly `do {} while ()` keywords in your code. But that implies that the compiler knows that the loop will definitely be executed and conditions will be check at the end of an iteration. "For" loops will be transformed to do-while ones if possible.
+* The loop should be a "do-while" loop. This doesn't mean exactly `do {} while ()` keywords in your code. But that implies that the compiler knows that the loop will definitely be executed and conditions will be check at the end of an iteration. "For" loops will be transformed to do-while ones if possible.
 * The loop shouldn't start from a `try {} catch {}` block. The compiler won't optimize it.
-* The compiler won't bother optimizing code inside of a `catch {}` block.
+* The compiler won't bother optimizing code inside of a `catch {}` block too.
 
 TODO dominates
 
->And now we come close to what's called Basic Blocks. [__A Basic Block__][wiki-basicblocks] is an analysis unit for the compiler, a sequence of code with exactly one entry point and exactly one exit point. Whenever we enter a basic block, the code sequence is executed exactly once and in order. Each method is represented as a doubly linked list of basic blocks.
+>And now we come close to what's called basic blocks. [__A basic block__][wiki-basicblocks] is a unit of analysis for the compiler, a sequence of code with exactly one entry point and exactly one exit point. Whenever we enter a basic block, the code sequence is executed exactly once and in order. Each method is represented as a doubly linked list of basic blocks.
 
 If the loop suits the conditions we continue with its content, namely the basic blocks. The compiler tries to find the set of definitely-executed basic blocks.
-If the loop has only one exit then we take all [post-dominator][wiki-dominator] blocks for further analysis. If the loop has more than one exits then we take only __the first__ "entry" basic block because we assume that the entry block is definitely executed.
+If the loop has only one exit then we take all [post-dominator][wiki-dominator] blocks for further analysis. If the loop has more than one exits then we take only __the first__ "entry" basic block because we assume that the first block is definitely executed.
 
-Then we iterate over selected blocks.
+Then we iterate over the selected blocks.
 
-The compiler check block's weight TODO
 
-A basic block contains a list of doubly-linked statements, which in their turn can be represented as an expression - tree of TODO
-Then we iterate over each expression in the block and check whether we can hoist the expression or not. That logic happens in [`Compiler::optHoistLoopExprsForTree` method.][github-optimizer-optHoistLoopExprsForTree]
+#### Examine the basic block
 
-The expression can be hoisted if:
+The compiler calculates the basic block's "weight", and decides whether it's worth to optimize the block or not.  There's [a heuristic algorithm][github-lclvars-getBBWeight] behind that decision, which depends on several factors, such as the dynamic execution weight of this block, the number of times this block was called and some magic constants.
 
-* All children of the expression tree are hoistable, then "tree" itself can be hoisted
-* The expression tree is a CSE candidate. See below.
-* The compiler supports call operations, but only calls to internal JIT helper methods. See below
-* For now, we give up on an expression that might raise an exception if it is after the
+Each basic block contains a list of doubly-linked statements, which in their turn can be represented as a tree of expressions. Then we iterate over each tree of expressions in the basic block.
+
+
+#### Examine the expression
+
+The expression is a unit that can be optimized and moved out of the loop scope. The compiler check whether we can hoist the expression or not. That logic happens in [`Compiler::optHoistLoopExprsForTree` method.][github-optimizer-optHoistLoopExprsForTree]
+
+The following conditions need to be met:
+
+* All children of the expression tree are hoistable, then the whole tree itself can be hoisted.
+* The expression tree is a CSE candidate. Please see details below.
+* The compiler supports `call` operations, but only calls to internal JIT helper methods. See below
+* For now, we give up on an expression that might raise an exception if it is after the first possible global side effect
 * Currently we must give up on reads from static variables (even if we are in the first block). contradiction with CSE, issue? [github-staticvars]
 
 
-#### CSE
+#### What is CSE?
 
-Common Subexpression Elimination (CSE) - identifies redundant computations, which are then evaluated to a new temp lvlVar, and then reused.
+CSE stands for Common Subexpression Elimination. It's another type of optimization. It identifies redundant computations, which are then evaluated to a new temp "variables", and then reused.  Hoisting can leverage it because they have pretty similar semantic. The logic is in [`Compiler::optIsCSEcandidate`][github-optcse-optIsCSEcandidate] method.
 
-The logic is in [`Compiler::optIsCSEcandidate`][github-optcse-optIsCSEcandidate] method.
+The following conditions need to be met:
 
-Not if expression contains explicit assignment operator
-No for structs and void?
-
-Do not support float type on x86, as we currently can only enregister doubles
+* Not if expression contains explicit assignment operator
+* No for structs and void?
+* Do not support float type on x86, as we currently can only enregister doubles
 but x86 isn't supported, so that not relevant.
-
-Do not support double/float constant 'dconst' il  can represent both float and doubles
-
-Try to check the expression code execution cost, whether it worth to optimize or not. Heuristic?
-
-The compiler supports call operations, but only calls to internal JIT helper methods. Generally all call operations are considered to have side-effects.
+* Do not support double/float constant 'dconst' il  can represent both float and doubles
+* Try to check the expression code execution cost, whether it worth to optimize or not. Heuristic?
+* The compiler supports call operations, but only calls to internal JIT helper methods. Generally all call operations are considered to have side-effects.
 But we may have a helper call that doesn't have any important side effects.
 The list of helper functions defined [in the corinfo.h file][github-helpers-list] and [the implementations in `jithelpers.cpp`][github-helpers]. So that some helper methods are considered as side-effects free.
 [The logic behind][github-helpers-sideeffect]
+* The compiler can optimize operation on constants, array's element and length, local variables access, some unary and binary operators, casts, comparison operators, math functions.
 
-In addition to all the above, the compiler can optimizer operation on constants, array's element and length, local variables access, some unary and binary operators, casts, comparison operators, math functions.
+If all those conditions are met then we consider that expression to be hoisted and moved out of the loop to its "header" block.
 
+###  Final checks  
 
+We are almost done and at this moment we have all suitable candidates for optimization, but there are some final checks left before we can do that.
+The compiler performs additional validation of the tree and makes sure that it's safe to put it in the header.
 
+Then it checks whether it's worth to introduce a new "variable" or not. The main focus is on available CPU registers. The advantage of using registers is speed, but CPUs have a limited number of them. So not all variables can be assigned to registers and some of them will be placed in the stack which is slower. If there's not enough registers the compiler won't hoist expressions that are not heavy. The logic resides in `Compiler::optIsProfitableToHoistableTree` method.
 
-
-
-
-
-
-
-Checks is it worth to introduce a new temp variable or not.
-
+And finally we're done! Thank you for your time! As you can see, hoisting exists in .NET! JIT performs a lot of sophisticated logic to make it work. I hope you found the post interesting and useful. There will be the part 2 with a bunch of examples. If you have an interesting case that you want to share or analyze, drop me a line please.
 
 
-
-Check if hoisting is profitable based on available registers.
-optIsProfitableToHoistableTree
-
-
-// TODO FP treated separately
-
-
-
-
-_P.S. Thank you for your time! I hope you found the post interesting and useful. There will be the part 2 with a bunch of examples. If you have an interesting case that you want to share or analyze, then you can send it to me to nikitin.alexandr.a at gmail._
-
-
+_P.S. The post is actual for RyuJIT and I'm not sure about legacy JIT compilers. Probably, most of the statements are valid for them too._
 
   [github-docs-lch]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#loop-invariant-code-hoisting
   [google-hoisting]: https://www.google.com/search?q=Hoisting+.NET
@@ -156,6 +144,8 @@ _P.S. Thank you for your time! I hope you found the post interesting and useful.
   [github-optimizer-optHoistThisLoop]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/optimizer.cpp#L5554
   [github-optimizer-optHoistLoopExprsForTree]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/optimizer.cpp#L5862
   [github-optcse-optIsCSEcandidate]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/optcse.cpp#L1914
+  [github-lclvars-getBBWeight]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/lclvars.cpp#L2048
+  [github-optimizer-optIsProfitableToHoistableTree]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/optimizer.cpp#L5767
 
 
   [github-helpers-list]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/inc/corinfo.h#L266

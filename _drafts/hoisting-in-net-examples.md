@@ -18,9 +18,11 @@ based on part 1
 The fun part.
 
 array length
+array element
 try block
 local var
-static
+many vars
+static var
 jit helper
 not do while loop
 structs
