@@ -2,7 +2,7 @@
 layout: post
 title: Access a null pointer without exception
 date: 2015-10-28
-modified: 2015-10-28 20:06:00
+modified: 2015-11-30 16:56:00
 excerpt: A story about a pattern, with interest, conviction, rejection and compassion in the end.
 tags: [C++, CLR, WTF, Anti-patterns]
 comments: true
