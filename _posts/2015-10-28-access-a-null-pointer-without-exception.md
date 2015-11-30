@@ -17,7 +17,7 @@ _Update: Because many of you didn't get the notion I put the "sarcasm" tag right
 
 I want to introduce you a pattern that allows you to access a null pointer without any exception. Excited? Me too!
 
-Imaging, you have a class and some data that you want to access regardless of a pointer. For the sake of the concocted example and to present the pattern... :grimacing: well, you need to mark the field and the "getter" method as `static`, in addition mark the "getter" method with `inline` keyword.
+Imaging, you have a class and some data that you want to access regardless of a pointer. For the sake of the concocted example and to present the pattern... :grimacing: well, you need to mark the field and the "getter" method as `static`, that's it.
 
 ```cpp
 class MyConcoctedClass
@@ -28,7 +28,7 @@ class MyConcoctedClass
 
 int MyConcoctedClass::data;
 
-inline int MyConcoctedClass::get_data()
+int MyConcoctedClass::get_data()
 {
 	return data;
 }
@@ -82,24 +82,17 @@ If we don't define `MULTIPLE_HEAPS` we define `PER_HEAP` as `static` in [gcimpl.
 #endif // MULTIPLE_HEAPS
 ```
 
-In that case `dynamic_data_table` field in [`gc_heap` class][gcpriv.h-static] becomes static:
+In that case [the `dynamic_data_table` field][gcpriv.h-static] and [the `dynamic_data_of` method][gcpriv.h-static-method] in `gc_heap` class become static:
 
 ```cpp
 PER_HEAP
 dynamic_data dynamic_data_table [NUMBERGENERATIONS+1];
+...
+PER_HEAP
+dynamic_data* dynamic_data_of (int gen_number);
 ```
 
-Taking into account that we inline [the `dynamic_data_of` method][gcpriv.h-inline]:
-
-```cpp
-inline
-dynamic_data* gc_heap::dynamic_data_of (int gen_number)
-{
-    return &dynamic_data_table [ gen_number ];
-}
-```
-
-everything works...
+and everything works...
 
 :see_no_evil:
 
@@ -121,4 +114,4 @@ TBA :worried:
   [issue]: https://github.com/dotnet/coreclr/issues/1860
   [gcimpl.h]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/gc/gcimpl.h#L22
   [gcpriv.h-static]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/gc/gcpriv.h#L3431
-  [gcpriv.h-inline]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/gc/gcpriv.h#L4276
+  [gcpriv.h-static-method]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/gc/gcpriv.h#L1895
