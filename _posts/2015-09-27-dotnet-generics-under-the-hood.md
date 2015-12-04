@@ -436,4 +436,4 @@ Just for fun. If there wasn't any interest then nothing would happen.
   [wiki-arity]: https://en.wikipedia.org/wiki/Arity
   [type-internals]: http://www.codeproject.com/Articles/20481/NET-Type-Internals-From-a-Microsoft-CLR-Perspecti
   [windbg-tutorial]: https://docs.google.com/document/d/1yMQ8NAQZEBtsfVp7AsFLSA_MkIKlYNuSowG72_nU0ek/edit
-  [book-pro-dotnet-performance]: http://amzn.to/1Fs99td
+  [book-pro-dotnet-performance]: http://amzn.to/1TEXnOK
