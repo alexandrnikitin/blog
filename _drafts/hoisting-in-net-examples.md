@@ -17,13 +17,21 @@ based on part 1
 
 The fun part.
 
-array length
-array element
+Hoisted:
+array length & element
+jit helper
+
+
+
+Not hoisted:
+static var
+
+
 try block
 local var
 many vars
-static var
-jit helper
+
+
 not do while loop
-structs
+structs?
 many exits
