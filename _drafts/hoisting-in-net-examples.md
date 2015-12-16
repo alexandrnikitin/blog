@@ -10,11 +10,11 @@ comments: true
 share: true
 ---
 
-:warning: This post is based on the theoretical part ["Hoisting in .NET Explained"][post-part1] It contains examples of the JIT hoisting optimization with assembly listings. Take a look at the previous post please if you haven't read it before.
+This post is based on the theoretical part ["Hoisting in .NET Explained"][post-part1] It contains some examples of the JIT hoisting optimization with assembly listings. Take a look at the previous post please if you haven't read it before.
 
 ### Local variables, arguments and fields
 
-This is the basic example of the hoisting optimization. I combined local variable, argument and field access into one example with a field. Because the semantic of it is very similar, we don't read a value from memory at each iteration but put it into register.
+This is the basic example of the hoisting optimization. I combined local variable, argument and field access examples into one example with a field access. Because the semantic of them is very similar, we don't read a value from memory at each iteration but put it into register.
 
 
 ```csharp
@@ -53,7 +53,7 @@ public class HoistingField
 
 ### Array's length and element
 
-This is a classic example. We access the array's length property and an element in a loop. JIT is smart enough to move those read outside the loop.
+This is a classic example. We access the array's length property and an element value in a loop. JIT is smart enough to move those read outside the loop.
 
 ```csharp
 public int Test(int[] arr)
@@ -97,7 +97,7 @@ public int Test(int[] arr)
 
 ### JIT helper method call
 
-Actually, this example attracted my attention to the hoisting optimization. JIT can hoist calls to internal helper methods. This example is based on my post [".NET Generics under the hood"][post-generics] Take a look if you want to get familiar with the topic.
+Actually, this case attracted my attention to the hoisting optimization. JIT can hoist calls to its internal helper methods. This example is from my post [".NET Generics under the hood"][post-generics] Take a look if you want to get familiar with the topic.
 
 In this example we have a Generic class and we call another Generic method in its method. This means that we need to perform an expensive Handle lookup at Runtime before calling the method. Good news! JIT can optimize and move that call outside the loop.
 
@@ -152,7 +152,7 @@ public class HoistingJitHelperMethod<T>
 
 ### Static field
 
-Isn't hoisted. Multithreading, backward compatibility. TODO link to discussion.
+JIT doesn't hoist static fields. The reason is unclear for me. There's a discussion [happening on github][github-static]. Multithreading code, backward compatibility, a bug?
 
 ```csharp
 public class HoistingStatic
@@ -174,17 +174,20 @@ public class HoistingStatic
 ```
 00007ffa`a0520590 33c0            xor     eax,eax
 00007ffa`a0520592 33d2            xor     edx,edx
+  // iteration starts here
+  // read a value from the main memory
 00007ffa`a0520594 8b0dc241efff    mov     ecx,dword ptr [00007ffa`a041475c]
 00007ffa`a052059a 03c1            add     eax,ecx
 00007ffa`a052059c ffc2            inc     edx
 00007ffa`a052059e 83fa0b          cmp     edx,0Bh
 00007ffa`a05205a1 7cf1            jl      00007ffa`a0520594
+  // iteration ends here
 00007ffa`a05205a3 c3              ret
 ```
 
 ### Try catch block
 
-Isn't hoisted
+JIT doesn't hoist code that starts with try block.
 
 ```csharp
 public int Test(int a)
@@ -213,6 +216,8 @@ public int Test(int a)
 00007fff`23b70701 33c0            xor     eax,eax
 00007fff`23b70703 8945fc          mov     dword ptr [rbp-4],eax
 00007fff`23b70706 8945f8          mov     dword ptr [rbp-8],eax
+  // iteration starts here
+  // read values from the stack
 00007fff`23b70709 8b45fc          mov     eax,dword ptr [rbp-4]
 00007fff`23b7070c 8b5518          mov     edx,dword ptr [rbp+18h]
 00007fff`23b7070f 03c2            add     eax,edx
@@ -223,6 +228,7 @@ public int Test(int a)
 00007fff`23b7071c 8b45f8          mov     eax,dword ptr [rbp-8]
 00007fff`23b7071f 83f80b          cmp     eax,0Bh
 00007fff`23b70722 7ce5            jl      00007fff`23b70709
+  // iteration ends here
 00007fff`23b70724 8b45fc          mov     eax,dword ptr [rbp-4]
 00007fff`23b70727 488d6500        lea     rsp,[rbp]
 00007fff`23b7072b 5d              pop     rbp
@@ -241,7 +247,7 @@ public int Test(int a)
 
 ### Many exits in a loop
 
-Not hoisted, read from main memory, JIT optimizes only the first entry block in that case.
+JIT doesn't hoist loops with many exits. It doesn't know what branch will be executed and tries not to add more work here. It optimizes only the first entry block in that case.
 
 ```csharp
 public class HoistingManyExits
@@ -266,22 +272,24 @@ public class HoistingManyExits
 ```
 00007fff`23ba0810 33c0            xor     eax,eax
 00007fff`23ba0812 33d2            xor     edx,edx
+  // iteration starts here
 00007fff`23ba0814 83f87b          cmp     eax,7Bh
 00007fff`23ba0817 7e01            jle     00007fff`23ba081a
 00007fff`23ba0819 c3              ret
+  // read the field's value from the main memory
 00007fff`23ba081a 448b4108        mov     r8d,dword ptr [rcx+8]
 00007fff`23ba081e 4103c0          add     eax,r8d
 00007fff`23ba0821 ffc2            inc     edx
 00007fff`23ba0823 83fa0b          cmp     edx,0Bh
 00007fff`23ba0826 7cec            jl      00007fff`23ba0814
+  // iteration ends here
 00007fff`23ba0828 c3              ret
 ```
 
-.
 
-### Many vars
+### Many variables
 
-Not hoisted, read from main memory, too less registers
+The following example shows a case when there's not enough registers and the operation isn't extensive. JIT doesn't optimize the code in this case.
 
 ```csharp
 public class HoistingManyVars
@@ -320,6 +328,7 @@ public class HoistingManyVars
 00007fff`23b808da 8bac2490000000  mov     ebp,dword ptr [rsp+90h]
 00007fff`23b808e1 4533f6          xor     r14d,r14d
 00007fff`23b808e4 4533ff          xor     r15d,r15d
+  // iteration starts here
 00007fff`23b808e7 4403f2          add     r14d,edx
 00007fff`23b808ea 4503f0          add     r14d,r8d
 00007fff`23b808ed 4503f1          add     r14d,r9d
@@ -330,11 +339,13 @@ public class HoistingManyVars
 00007fff`23b808fc 4403f7          add     r14d,edi
 00007fff`23b808ff 4403f3          add     r14d,ebx
 00007fff`23b80902 4403f5          add     r14d,ebp
+  // read the field's value from the main memory
 00007fff`23b80905 448b6108        mov     r12d,dword ptr [rcx+8]
 00007fff`23b80909 4503f4          add     r14d,r12d
 00007fff`23b8090c 41ffc7          inc     r15d
 00007fff`23b8090f 4183ff0b        cmp     r15d,0Bh
 00007fff`23b80913 7cd2            jl      00007fff`23b808e7
+  // iteration ends here
 00007fff`23b80915 418bc6          mov     eax,r14d
 00007fff`23b80918 5b              pop     rbx
 00007fff`23b80919 5d              pop     rbp
@@ -346,13 +357,9 @@ public class HoistingManyVars
 00007fff`23b80922 c3              ret
 ```
 
-### Math & double
+### Math functions & double type
 
-Here I wanted to check `double` type and Math functions
-Math.Abs() isn't hoisted. Why?
-
-
-
+In the following example I wanted to check `double` type and Math functions hoisting. I expected to see the `int Math.Abs(int x)` function to be hoisted. But it wasn't. Who can explain that? `Math.Pow()` isn't hoisted too, I assume because it operates with `double` type.  
 
 ```csharp
 public double Run(int a)
@@ -378,15 +385,18 @@ public double Run(int a)
 00007fff`23b80981 8bf2            mov     esi,edx
 00007fff`23b80983 c4e14957f6      vxorpd  xmm6,xmm6,xmm6
 00007fff`23b80988 33ff            xor     edi,edi
+  // iteration starts here
 00007fff`23b8098a 85f6            test    esi,esi
 00007fff`23b8098c 7c04            jl      00007fff`23b80992
 00007fff`23b8098e 8bde            mov     ebx,esi
 00007fff`23b80990 eb09            jmp     00007fff`23b8099b
 00007fff`23b80992 8bce            mov     ecx,esi
+  // call Math.Abs()
 00007fff`23b80994 e8a7c0545e      call    mscorlib_ni+0x45ca40 (00007fff`820cca40) (System.Math.AbsHelper(Int32), mdToken: 0000000006000f17)
 00007fff`23b80999 8bd8            mov     ebx,eax
 00007fff`23b8099b c4e17b100544000000 vmovsd xmm0,qword ptr [00007fff`23b809e8]
 00007fff`23b809a4 c4e17b100d43000000 vmovsd xmm1,qword ptr [00007fff`23b809f0]
+  // call Math.Pow()
 00007fff`23b809ad e86e45d15f      call    clr!NGenCreateNGenWorker+0xa7880 (00007fff`83894f20) (System.Math.Pow(Double, Double), mdToken: 0000000006000f10)
 00007fff`23b809b2 c4e17057c9      vxorps  xmm1,xmm1,xmm1
 00007fff`23b809b7 c4e1732acb      vcvtsi2sd xmm1,xmm1,ebx
@@ -395,6 +405,7 @@ public double Run(int a)
 00007fff`23b809c6 ffc7            inc     edi
 00007fff`23b809c8 83ff0b          cmp     edi,0Bh
 00007fff`23b809cb 7cbd            jl      00007fff`23b8098a
+  // iteration ends here
 00007fff`23b809cd c4e17828c6      vmovaps xmm0,xmm6
 00007fff`23b809d2 c5f877          vzeroupper
 00007fff`23b809d5 c4e17828742420  vmovaps xmm6,xmmword ptr [rsp+20h]
@@ -405,9 +416,9 @@ public double Run(int a)
 00007fff`23b809e3 c3              ret
 ```
 
-### Not do while loop
+### Not a "do-while" loop
 
-Isn't hoisted. JIT isn't sure that the loop will be executed. JIT tries to optimize the path that definitely will be executed so that doesn't perform unnecessary read from the main memory.
+In the following example JIT isn't sure that the loop will be executed. JIT tries to optimize the path that definitely will be executed, so that it doesn't perform unnecessary read from the main memory before iteration.  
 
 ```csharp
 public class HoistingNotDoWhile
@@ -436,26 +447,29 @@ public class HoistingNotDoWhile
 00007fff`23ba0a4e e835f8ffff      call    00007fff`23ba0288 (HoistingInDotNetExamples.HoistingNotDoWhile.ShouldContinue(), mdToken: 000000000600000a)
 00007fff`23ba0a53 84c0            test    al,al
 00007fff`23ba0a55 7411            je      00007fff`23ba0a68
+  // iteration starts here
+  // read the field's value from the main memory
 00007fff`23ba0a57 8b4e08          mov     ecx,dword ptr [rsi+8]
 00007fff`23ba0a5a 03f9            add     edi,ecx
 00007fff`23ba0a5c 488bce          mov     rcx,rsi
 00007fff`23ba0a5f e824f8ffff      call    00007fff`23ba0288 (HoistingInDotNetExamples.HoistingNotDoWhile.ShouldContinue(), mdToken: 000000000600000a)
 00007fff`23ba0a64 84c0            test    al,al
 00007fff`23ba0a66 75ef            jne     00007fff`23ba0a57
+    // iteration ends here
 00007fff`23ba0a68 8bc7            mov     eax,edi
 00007fff`23ba0a6a 4883c428        add     rsp,28h
 00007fff`23ba0a6e 5e              pop     rsi
 00007fff`23ba0a6f 5f              pop     rdi
 00007fff`23ba0a70 c3              ret
 ```
-
-structs?
+.
 
 ### Epilogue
 
-We've taken a close look at some examples of the JIT hoisting optimization.
-Examples can be found on github TODO Please, create a pull request if you want to add an interesting.
+We've taken a close look at some examples of the JIT hoisting optimization. You can find [those examples on github][github-examples]. Please create a pull request if you want to add an interesting case. Thank you for your time :wink:
 
 
   [post-part1]: https://alexandrnikitin.github.io/blog/hoisting-in-net-explained/
   [post-generics]: https://alexandrnikitin.github.io/blog/dotnet-generics-under-the-hood/
+  [github-static]: https://github.com/dotnet/coreclr/issues/2157
+  [github-examples]: https://github.com/alexandrnikitin/HoistingInNETExamples
