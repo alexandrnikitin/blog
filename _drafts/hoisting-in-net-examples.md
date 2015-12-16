@@ -22,14 +22,12 @@ public class HoistingField
 {
     public int a = 123;
 
-    public int Field()
+    public int Run()
     {
         var sum = 0;
 
         for (var i = 0; i < 11; i++)
-        {
             sum += a;
-        }
 
         return sum;
     }
@@ -56,14 +54,17 @@ public class HoistingField
 This is a classic example. We access the array's length property and an element value in a loop. JIT is smart enough to move those read outside the loop.
 
 ```csharp
-public int Test(int[] arr)
+public class HoistingArray
 {
-    var sum = 0;
-    for (var i = 0; i < arr.Length; i++)
+    public int Run(int[] arr)
     {
-        sum += arr[1] + arr[i];
+        var sum = 0;
+
+        for (var i = 0; i < arr.Length; i++)
+            sum += arr[1] + arr[i];
+
+        return sum;
     }
-    return sum;
 }
 ```
 
@@ -159,13 +160,13 @@ public class HoistingStatic
 {
     public static int a = 123;
 
-    public int Static()
+    public int Run()
     {
         var sum = 0;
+
         for (var i = 0; i < 11; i++)
-        {
             sum += a;
-        }
+
         return sum;
     }
 }
@@ -187,23 +188,26 @@ public class HoistingStatic
 
 ### Try catch block
 
-JIT doesn't hoist code that starts with try block.
+JIT doesn't optimize the loop that starts with try block.
 
 ```csharp
-public int Test(int a)
+public class HoistingTryCatchBlock
 {
-    var sum = 0;
-
-    for (var i = 0; i < 11; i++)
+    public int Run(int a)
     {
-        try
-        {
-            sum += a;
-        }
-        catch { }
-    }
+        var sum = 0;
 
-    return sum;
+        for (var i = 0; i < 11; i++)
+        {
+            try
+            {
+                sum += a;
+            }
+            catch { }
+        }
+
+        return sum;
+    }
 }
 ```
 
@@ -254,7 +258,7 @@ public class HoistingManyExits
 {
     public int a = 123;
 
-    public int ManyExits()
+    public int Run()
     {
         var sum = 0;
 
@@ -289,14 +293,14 @@ public class HoistingManyExits
 
 ### Many variables
 
-The following example shows a case when there's not enough registers and the operation isn't extensive. JIT doesn't optimize the code in this case.
+The following example shows a case when there's not enough registers and the operation isn't expensive. JIT doesn't optimize the code in this case.
 
 ```csharp
 public class HoistingManyVars
 {
     public int a = 123;
 
-    public int ManyVars(int x1, int x2, int x3, int x4, int x5, int x6, int x7,
+    public int Run(int x1, int x2, int x3, int x4, int x5, int x6, int x7,
         int x8, int x9, int x10)
     {
         var sum = 0;
@@ -362,16 +366,17 @@ public class HoistingManyVars
 In the following example I wanted to check `double` type and Math functions hoisting. I expected to see the `int Math.Abs(int x)` function to be hoisted. But it wasn't. Who can explain that? `Math.Pow()` isn't hoisted too, I assume because it operates with `double` type.  
 
 ```csharp
-public double Run(int a)
+public class HoistingMath
 {
-    var sum = 0d;
+  public double Run(int a)
+  {
+      var sum = 0d;
 
-    for (var i = 0; i < 11; i++)
-    {
-        sum += Math.Abs(a) + Math.Pow(2, 2);
-    }
+      for (var i = 0; i < 11; i++)
+          sum += Math.Abs(a) + Math.Pow(2, 2);
 
-    return sum;
+      return sum;
+  }
 }
 ```
 
