@@ -62,11 +62,67 @@ public int Test(int[] arr)
 ```
 
 
-The fun part.
+#### JIT helper method call
+
+Actually, this example attracted my attention to the hoisting optimization. JIT can hoist calls to internal helper methods. This example is based on my post [".NET Generics under the hood"][post-generics] Take a look if you want to get familiar with the topic.
+
+```csharp
+public void JitHelper(List<T> list)
+{
+    for (var i = 0; i < 11; i++)
+    {
+        if (list.Any())
+        {
+            return;
+        }
+    }
+}
+```
+
+```
+00007ffa`a0530650 57              push    rdi
+00007ffa`a0530651 56              push    rsi
+00007ffa`a0530652 55              push    rbp
+00007ffa`a0530653 53              push    rbx
+00007ffa`a0530654 4883ec28        sub     rsp,28h
+00007ffa`a0530658 48894c2420      mov     qword ptr [rsp+20h],rcx
+00007ffa`a053065d 488bf9          mov     rdi,rcx
+00007ffa`a0530660 488bf2          mov     rsi,rdx
+00007ffa`a0530663 33db            xor     ebx,ebx
+00007ffa`a0530665 488b2f          mov     rbp,qword ptr [rdi]
+00007ffa`a0530668 488bcd          mov     rcx,rbp
+00007ffa`a053066b 488b5130        mov     rdx,qword ptr [rcx+30h]
+00007ffa`a053066f 488b12          mov     rdx,qword ptr [rdx]
+00007ffa`a0530672 488b4208        mov     rax,qword ptr [rdx+8]
+00007ffa`a0530676 4885c0          test    rax,rax
+00007ffa`a0530679 750f            jne     00007ffa`a053068a
+00007ffa`a053067b 48ba281757a0fa7f0000 mov rdx,7FFAA0571728h
+00007ffa`a0530685 e8269d6b5f      call    clr!LogHelp_LogAssert+0x3e810 (00007ffa`ffbea3b0) (JitHelp: CORINFO_HELP_RUNTIMEHANDLE_CLASS)
+00007ffa`a053068a 488bc8          mov     rcx,rax
+00007ffa`a053068d 488bd6          mov     rdx,rsi
+00007ffa`a0530690 e81b0bd85c      call    System_Core_ni+0x2f11b0 (00007ffa`fd2b11b0) (System.Linq.Enumerable.Any[[System.__Canon, mscorlib]](System.Collections.Generic.IEnumerable`1<System.__Canon>), mdToken: 0000000006000748)
+00007ffa`a0530695 84c0            test    al,al
+00007ffa`a0530697 7409            je      00007ffa`a05306a2
+00007ffa`a0530699 4883c428        add     rsp,28h
+00007ffa`a053069d 5b              pop     rbx
+00007ffa`a053069e 5d              pop     rbp
+00007ffa`a053069f 5e              pop     rsi
+00007ffa`a05306a0 5f              pop     rdi
+00007ffa`a05306a1 c3              ret
+00007ffa`a05306a2 ffc3            inc     ebx
+00007ffa`a05306a4 83fb0b          cmp     ebx,0Bh
+00007ffa`a05306a7 7cbf            jl      00007ffa`a0530668
+00007ffa`a05306a9 4883c428        add     rsp,28h
+00007ffa`a05306ad 5b              pop     rbx
+00007ffa`a05306ae 5d              pop     rbp
+00007ffa`a05306af 5e              pop     rsi
+00007ffa`a05306b0 5f              pop     rdi
+00007ffa`a05306b1 c3              ret
+```
+
+#### 
 
 Hoisted:
-array length & element
-jit helper
 
 
 
@@ -85,3 +141,4 @@ many exits
 
 
   [post-part1]: https://alexandrnikitin.github.io/blog/hoisting-in-net-explained/
+  [post-generics]: https://alexandrnikitin.github.io/blog/dotnet-generics-under-the-hood/

@@ -60,25 +60,16 @@ C:\temp\trace\ConsoleApplication1\ConsoleApplication1\Program.cs @ 55:
 
 
 
+public void JitHelper(List<T> list)
+{
+    for (var i = 0; i < 11; i++)
+        if (list.Any())
+            return;
+}
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-0:003> !U 00007ffaa0425e70    
+0:003> !U 00007ffaa0425e70
 Normal JIT generated code
 HoistingInDotNetExamples.HoistingJitHelperMethod`1[[System.__Canon, mscorlib]].JitHelper(System.Collections.Generic.List`1<System.__Canon>)
 Begin 00007ffaa0530650, size 62
@@ -104,7 +95,7 @@ C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\Array.cs @ 90:
 00007ffa`a0530676 4885c0          test    rax,rax
 00007ffa`a0530679 750f            jne     00007ffa`a053068a
 00007ffa`a053067b 48ba281757a0fa7f0000 mov rdx,7FFAA0571728h
-*** ERROR: Symbol file could not be found.  Defaulted to export symbols for C:\Windows\Microsoft.NET\Framework64\v4.0.30319\clr.dll - 
+*** ERROR: Symbol file could not be found.  Defaulted to export symbols for C:\Windows\Microsoft.NET\Framework64\v4.0.30319\clr.dll -
 00007ffa`a0530685 e8269d6b5f      call    clr!LogHelp_LogAssert+0x3e810 (00007ffa`ffbea3b0) (JitHelp: CORINFO_HELP_RUNTIMEHANDLE_CLASS)
 00007ffa`a053068a 488bc8          mov     rcx,rax
 00007ffa`a053068d 488bd6          mov     rdx,rsi
