@@ -485,6 +485,11 @@ public class HoistingNotDoWhile
 
 structs?
 
+### Epilogue
+
+We've taken a close look at some examples of the JIT hoisting optimization.
+Examples can be found on github TODO Please, create a pull request if you want to add an interesting.
+
 
   [post-part1]: https://alexandrnikitin.github.io/blog/hoisting-in-net-explained/
   [post-generics]: https://alexandrnikitin.github.io/blog/dotnet-generics-under-the-hood/
