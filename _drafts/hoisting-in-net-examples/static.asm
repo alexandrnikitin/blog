@@ -1,4 +1,23 @@
-0:003> !U 00007ffaa0415b50    
+public class HoistingStatic
+{
+    public static int a = 123;
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public int Static()
+    {
+        var sum = 0;
+
+        for (var i = 0; i < 11; i++)
+        {
+            sum += a;
+        }
+
+        return sum;
+    }
+}
+
+
+0:003> !U 00007ffaa0415b50
 Normal JIT generated code
 HoistingInDotNetExamples.HoistingStatic.Static()
 Begin 00007ffaa0520590, size 14

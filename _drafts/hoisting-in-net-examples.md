@@ -120,14 +120,43 @@ public void JitHelper(List<T> list)
 00007ffa`a05306b1 c3              ret
 ```
 
-#### 
+#### Static field
+
+Isn't hoisted. Multithreading, backward compatibility.
+
+```csharp
+public class HoistingStatic
+{
+    public static int a = 123;
+
+    public int Static()
+    {
+        var sum = 0;
+        for (var i = 0; i < 11; i++)
+        {
+            sum += a;
+        }
+        return sum;
+    }
+}
+```
+
+```
+00007ffa`a0520590 33c0            xor     eax,eax
+00007ffa`a0520592 33d2            xor     edx,edx
+00007ffa`a0520594 8b0dc241efff    mov     ecx,dword ptr [00007ffa`a041475c]
+00007ffa`a052059a 03c1            add     eax,ecx
+00007ffa`a052059c ffc2            inc     edx
+00007ffa`a052059e 83fa0b          cmp     edx,0Bh
+00007ffa`a05205a1 7cf1            jl      00007ffa`a0520594
+00007ffa`a05205a3 c3              ret
+```
 
 Hoisted:
 
 
 
 Not hoisted:
-static var
 
 
 try block
