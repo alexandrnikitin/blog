@@ -245,6 +245,8 @@ public class HoistingField
 
 Hoisted, we don't read from stack at each iteration.
 
+TODO combine local var, field and arg into one example.
+
 ```csharp
 public int Arg(int a)
 {
