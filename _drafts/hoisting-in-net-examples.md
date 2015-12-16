@@ -122,7 +122,7 @@ public void JitHelper(List<T> list)
 
 #### Static field
 
-Isn't hoisted. Multithreading, backward compatibility.
+Isn't hoisted. Multithreading, backward compatibility. TODO link to discussion.
 
 ```csharp
 public class HoistingStatic
