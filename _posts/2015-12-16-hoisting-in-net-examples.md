@@ -34,7 +34,7 @@ public class HoistingField
 }
 ```
 
-```
+```sass
 00007fff`23b907b0 33c0            xor     eax,eax
 00007fff`23b907b2 33d2            xor     edx,edx
   // put the field value into register
@@ -68,7 +68,7 @@ public class HoistingArray
 }
 ```
 
-```
+```sass
 00007fff`23bb0580 4883ec28        sub     rsp,28h
 00007fff`23bb0584 33c0            xor     eax,eax
 00007fff`23bb0586 33c9            xor     ecx,ecx
@@ -116,7 +116,7 @@ public class HoistingJitHelperMethod<T>
 }
 ```
 
-```
+```sass
 00007ffc`8c2e0b00 57              push    rdi
 00007ffc`8c2e0b01 56              push    rsi
 00007ffc`8c2e0b02 53              push    rbx
@@ -172,7 +172,7 @@ public class HoistingStatic
 }
 ```
 
-```
+```sass
 00007ffa`a0520590 33c0            xor     eax,eax
 00007ffa`a0520592 33d2            xor     edx,edx
   // iteration starts here
@@ -211,7 +211,7 @@ public class HoistingTryCatchBlock
 }
 ```
 
-```
+```sass
 00007fff`23b706f0 55              push    rbp
 00007fff`23b706f1 4883ec10        sub     rsp,10h
 00007fff`23b706f5 488d6c2410      lea     rbp,[rsp+10h]
@@ -273,7 +273,7 @@ public class HoistingManyExits
 }
 ```
 
-```
+```sass
 00007fff`23ba0810 33c0            xor     eax,eax
 00007fff`23ba0812 33d2            xor     edx,edx
   // iteration starts here
@@ -315,7 +315,7 @@ public class HoistingManyVars
 }
 ```
 
-```
+```sass
 00007fff`23b808b0 4157            push    r15
 00007fff`23b808b2 4156            push    r14
 00007fff`23b808b4 4154            push    r12
@@ -380,7 +380,7 @@ public class HoistingMath
 }
 ```
 
-```
+```sass
 00007fff`23b80970 57              push    rdi
 00007fff`23b80971 56              push    rsi
 00007fff`23b80972 53              push    rbx
@@ -442,7 +442,7 @@ public class HoistingNotDoWhile
 }
 ```
 
-```
+```sass
 00007fff`23ba0a40 57              push    rdi
 00007fff`23ba0a41 56              push    rsi
 00007fff`23ba0a42 4883ec28        sub     rsp,28h
@@ -467,7 +467,7 @@ public class HoistingNotDoWhile
 00007fff`23ba0a6f 5f              pop     rdi
 00007fff`23ba0a70 c3              ret
 ```
-
+.
 
 ### Epilogue
 
