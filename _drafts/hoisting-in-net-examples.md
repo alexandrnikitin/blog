@@ -10,14 +10,50 @@ comments: true
 share: true
 ---
 
-:warning: This post contains a bunch of examples of the JIT hoisting optimization with assembly listings. It's based on the theoretical part ["Hoisting in .NET Explained"][post-part1]
+:warning: This post is based on the theoretical part ["Hoisting in .NET Explained"][post-part1] It contains examples of the JIT hoisting optimization with assembly listings. Take a look at the previous post please if you haven't read it before.
+
+### Local variables, arguments and fields
+
+This is the basic example of the hoisting optimization. I combined local variable, argument and field access into one example with a field. Because the semantic of it is very similar, we don't read a value from memory at each iteration but put it into register.
 
 
-### Examples
+```csharp
+public class HoistingField
+{
+    public int a = 123;
 
-#### Array's length and element
+    public int Field()
+    {
+        var sum = 0;
 
-The first example will be a classic one. We access the array's length property and an element in a loop.
+        for (var i = 0; i < 11; i++)
+        {
+            sum += a;
+        }
+
+        return sum;
+    }
+}
+```
+
+```
+00007fff`23b907b0 33c0            xor     eax,eax
+00007fff`23b907b2 33d2            xor     edx,edx
+  // put the field value into register
+00007fff`23b907b4 8b4908          mov     ecx,dword ptr [rcx+8]
+  // iteration starts here
+00007fff`23b907b7 03c1            add     eax,ecx
+00007fff`23b907b9 ffc2            inc     edx
+00007fff`23b907bb 83fa0b          cmp     edx,0Bh
+00007fff`23b907be 7cf7            jl      00007fff`23b907b7
+  // iteration ends here
+00007fff`23b907c0 c3              ret
+```
+
+
+### Array's length and element
+
+This is a classic example. We access the array's length property and an element in a loop. JIT is smart enough to move those read outside the loop.
 
 ```csharp
 public int Test(int[] arr)
@@ -35,12 +71,15 @@ public int Test(int[] arr)
 00007fff`23bb0580 4883ec28        sub     rsp,28h
 00007fff`23bb0584 33c0            xor     eax,eax
 00007fff`23bb0586 33c9            xor     ecx,ecx
+  // put the array's length into register
 00007fff`23bb0588 448b4208        mov     r8d,dword ptr [rdx+8]
 00007fff`23bb058c 4585c0          test    r8d,r8d
 00007fff`23bb058f 7e1f            jle     00007fff`23bb05b0
 00007fff`23bb0591 4183f801        cmp     r8d,1
 00007fff`23bb0595 761e            jbe     00007fff`23bb05b5
+  // put the array's first element into register
 00007fff`23bb0597 448b4a14        mov     r9d,dword ptr [rdx+14h]
+  // iteration starts here
 00007fff`23bb059b 4103c1          add     eax,r9d
 00007fff`23bb059e 4c63d1          movsxd  r10,ecx
 00007fff`23bb05a1 468b549210      mov     r10d,dword ptr [rdx+r10*4+10h]
@@ -48,6 +87,7 @@ public int Test(int[] arr)
 00007fff`23bb05a9 ffc1            inc     ecx
 00007fff`23bb05ab 443bc1          cmp     r8d,ecx
 00007fff`23bb05ae 7feb            jg      00007fff`23bb059b
+  // iteration ends here
 00007fff`23bb05b0 4883c428        add     rsp,28h
 00007fff`23bb05b4 c3              ret
 00007fff`23bb05b5 e84e14a85f      call    clr!TranslateSecurityAttributes+0x900d4 (00007fff`83631a08) (JitHelp: CORINFO_HELP_RNGCHKFAIL)
@@ -55,65 +95,62 @@ public int Test(int[] arr)
 ```
 
 
-#### JIT helper method call
+### JIT helper method call
 
 Actually, this example attracted my attention to the hoisting optimization. JIT can hoist calls to internal helper methods. This example is based on my post [".NET Generics under the hood"][post-generics] Take a look if you want to get familiar with the topic.
 
+In this example we have a Generic class and we call another Generic method in its method. This means that we need to perform an expensive Handle lookup at Runtime before calling the method. Good news! JIT can optimize and move that call outside the loop.
+
 ```csharp
-public void JitHelper(List<T> list)
+public class HoistingJitHelperMethod<T>
 {
-    for (var i = 0; i < 11; i++)
+    private List<T> _list = new List<T>();
+
+    public void Run()
     {
-        if (list.Any())
-        {
-            return;
-        }
+        for (var i = 0; i < 11; i++)
+            if (list.Any())
+                return;
     }
 }
 ```
 
 ```
-00007ffa`a0530650 57              push    rdi
-00007ffa`a0530651 56              push    rsi
-00007ffa`a0530652 55              push    rbp
-00007ffa`a0530653 53              push    rbx
-00007ffa`a0530654 4883ec28        sub     rsp,28h
-00007ffa`a0530658 48894c2420      mov     qword ptr [rsp+20h],rcx
-00007ffa`a053065d 488bf9          mov     rdi,rcx
-00007ffa`a0530660 488bf2          mov     rsi,rdx
-00007ffa`a0530663 33db            xor     ebx,ebx
-00007ffa`a0530665 488b2f          mov     rbp,qword ptr [rdi]
-00007ffa`a0530668 488bcd          mov     rcx,rbp
-00007ffa`a053066b 488b5130        mov     rdx,qword ptr [rcx+30h]
-00007ffa`a053066f 488b12          mov     rdx,qword ptr [rdx]
-00007ffa`a0530672 488b4208        mov     rax,qword ptr [rdx+8]
-00007ffa`a0530676 4885c0          test    rax,rax
-00007ffa`a0530679 750f            jne     00007ffa`a053068a
-00007ffa`a053067b 48ba281757a0fa7f0000 mov rdx,7FFAA0571728h
-00007ffa`a0530685 e8269d6b5f      call    clr!LogHelp_LogAssert+0x3e810 (00007ffa`ffbea3b0) (JitHelp: CORINFO_HELP_RUNTIMEHANDLE_CLASS)
-00007ffa`a053068a 488bc8          mov     rcx,rax
-00007ffa`a053068d 488bd6          mov     rdx,rsi
-00007ffa`a0530690 e81b0bd85c      call    System_Core_ni+0x2f11b0 (00007ffa`fd2b11b0) (System.Linq.Enumerable.Any[[System.__Canon, mscorlib]](System.Collections.Generic.IEnumerable`1<System.__Canon>), mdToken: 0000000006000748)
-00007ffa`a0530695 84c0            test    al,al
-00007ffa`a0530697 7409            je      00007ffa`a05306a2
-00007ffa`a0530699 4883c428        add     rsp,28h
-00007ffa`a053069d 5b              pop     rbx
-00007ffa`a053069e 5d              pop     rbp
-00007ffa`a053069f 5e              pop     rsi
-00007ffa`a05306a0 5f              pop     rdi
-00007ffa`a05306a1 c3              ret
-00007ffa`a05306a2 ffc3            inc     ebx
-00007ffa`a05306a4 83fb0b          cmp     ebx,0Bh
-00007ffa`a05306a7 7cbf            jl      00007ffa`a0530668
-00007ffa`a05306a9 4883c428        add     rsp,28h
-00007ffa`a05306ad 5b              pop     rbx
-00007ffa`a05306ae 5d              pop     rbp
-00007ffa`a05306af 5e              pop     rsi
-00007ffa`a05306b0 5f              pop     rdi
-00007ffa`a05306b1 c3              ret
+00007ffc`8c2e0b00 57              push    rdi
+00007ffc`8c2e0b01 56              push    rsi
+00007ffc`8c2e0b02 53              push    rbx
+00007ffc`8c2e0b03 4883ec30        sub     rsp,30h
+00007ffc`8c2e0b07 48894c2428      mov     qword ptr [rsp+28h],rcx
+00007ffc`8c2e0b0c 488bf1          mov     rsi,rcx
+00007ffc`8c2e0b0f 33ff            xor     edi,edi
+00007ffc`8c2e0b11 488b0e          mov     rcx,qword ptr [rsi]
+00007ffc`8c2e0b14 48ba281c328cfc7f0000 mov rdx,7FFC8C321C28h
+  // execute the expensive call only once outside the loop
+00007ffc`8c2e0b1e e80d90685f      call    clr!DllCanUnloadNowInternal+0x32c90 (00007ffc`eb969b30) (JitHelp: CORINFO_HELP_RUNTIMEHANDLE_CLASS)
+00007ffc`8c2e0b23 488bd8          mov     rbx,rax
+  // iteration starts here
+00007ffc`8c2e0b26 488bcb          mov     rcx,rbx
+00007ffc`8c2e0b29 488b5608        mov     rdx,qword ptr [rsi+8]
+00007ffc`8c2e0b2d e80edacc5c      call    System_Core_ni+0x2be540 (00007ffc`e8fae540) (System.Linq.Enumerable.Any[[System.__Canon, mscorlib]](System.Collections.Generic.IEnumerable`1<System.__Canon>), mdToken: 0000000006000732)
+00007ffc`8c2e0b32 84c0            test    al,al
+00007ffc`8c2e0b34 7408            je      00007ffc`8c2e0b3e
+00007ffc`8c2e0b36 4883c430        add     rsp,30h
+00007ffc`8c2e0b3a 5b              pop     rbx
+00007ffc`8c2e0b3b 5e              pop     rsi
+00007ffc`8c2e0b3c 5f              pop     rdi
+00007ffc`8c2e0b3d c3              ret
+00007ffc`8c2e0b3e ffc7            inc     edi
+00007ffc`8c2e0b40 81ff00127a00    cmp     edi,7A1200h
+00007ffc`8c2e0b46 7cde            jl      00007ffc`8c2e0b26
+  // iteration ends here
+00007ffc`8c2e0b48 4883c430        add     rsp,30h
+00007ffc`8c2e0b4c 5b              pop     rbx
+00007ffc`8c2e0b4d 5e              pop     rsi
+00007ffc`8c2e0b4e 5f              pop     rdi
+00007ffc`8c2e0b4f c3              ret
 ```
 
-#### Static field
+### Static field
 
 Isn't hoisted. Multithreading, backward compatibility. TODO link to discussion.
 
@@ -145,7 +182,7 @@ public class HoistingStatic
 00007ffa`a05205a3 c3              ret
 ```
 
-#### Try catch block
+### Try catch block
 
 Isn't hoisted
 
@@ -201,72 +238,8 @@ public int Test(int a)
 00007fff`23b70749 c3              ret
 ```
 
-#### Field
 
-```csharp
-public class HoistingField
-{
-    public int a = 123;
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public int Field()
-    {
-        var sum = 0;
-
-        for (var i = 0; i < 11; i++)
-        {
-            sum += a;
-        }
-
-        return sum;
-    }
-}
-```
-
-```
-00007fff`23b907b0 33c0            xor     eax,eax
-00007fff`23b907b2 33d2            xor     edx,edx
-00007fff`23b907b4 8b4908          mov     ecx,dword ptr [rcx+8]
-00007fff`23b907b7 03c1            add     eax,ecx
-00007fff`23b907b9 ffc2            inc     edx
-00007fff`23b907bb 83fa0b          cmp     edx,0Bh
-00007fff`23b907be 7cf7            jl      00007fff`23b907b7
-00007fff`23b907c0 c3              ret
-```
-
-#### Arg
-
-Hoisted, we don't read from stack at each iteration.
-
-TODO combine local var, field and arg into one example.
-
-```csharp
-public int Arg(int a)
-{
-    var sum = 0;
-
-    for (var i = 0; i < 11; i++)
-    {
-        sum += a;
-    }
-
-    return sum;
-}
-```
-
-```
-00007fff`23b907e0 33c0            xor     eax,eax
-00007fff`23b907e2 33c9            xor     ecx,ecx
-00007fff`23b907e4 03c2            add     eax,edx
-00007fff`23b907e6 ffc1            inc     ecx
-00007fff`23b907e8 83f90b          cmp     ecx,0Bh
-00007fff`23b907eb 7cf7            jl      00007fff`23b907e4
-00007fff`23b907ed c3              ret
-```  
-
-.
-
-#### Many exits in a loop
+### Many exits in a loop
 
 Not hoisted, read from main memory, JIT optimizes only the first entry block in that case.
 
@@ -306,7 +279,7 @@ public class HoistingManyExits
 
 .
 
-#### Many vars
+### Many vars
 
 Not hoisted, read from main memory, too less registers
 
@@ -373,7 +346,7 @@ public class HoistingManyVars
 00007fff`23b80922 c3              ret
 ```
 
-#### Math & double
+### Math & double
 
 Here I wanted to check `double` type and Math functions
 Math.Abs() isn't hoisted. Why?
@@ -432,7 +405,7 @@ public double Run(int a)
 00007fff`23b809e3 c3              ret
 ```
 
-#### Not do while loop
+### Not do while loop
 
 Isn't hoisted. JIT isn't sure that the loop will be executed. JIT tries to optimize the path that definitely will be executed so that doesn't perform unnecessary read from the main memory.
 
