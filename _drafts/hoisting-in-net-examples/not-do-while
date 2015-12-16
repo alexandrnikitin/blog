@@ -1,0 +1,135 @@
+public class HoistingNotDoWhile
+{
+    public int a = 123;
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public int Run()
+    {
+        var sum = 0;
+
+        for (var i = GetInitValue(); i < 11; i++)
+        {
+            sum += a;
+        }
+
+        return sum;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private int GetInitValue()
+    {
+        return new Random().Next(100);
+    }
+}
+
+
+
+0:003> !U 00007fff23a96460
+Normal JIT generated code
+HoistingInDotNetExamples.HoistingNotDoWhile.Run()
+Begin 00007fff23ba0a40, size 2d
+*** WARNING: Unable to verify checksum for HoistingInDotNetExamples.exe
+
+C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\HoistingNotDoWhile.cs @ 13:
+00007fff`23ba0a40 57              push    rdi
+00007fff`23ba0a41 56              push    rsi
+00007fff`23ba0a42 4883ec28        sub     rsp,28h
+00007fff`23ba0a46 488bf1          mov     rsi,rcx
+00007fff`23ba0a49 33ff            xor     edi,edi
+
+C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\HoistingNotDoWhile.cs @ 15:
+00007fff`23ba0a4b 488bce          mov     rcx,rsi
+00007fff`23ba0a4e e835f8ffff      call    00007fff`23ba0288 (HoistingInDotNetExamples.HoistingNotDoWhile.GetInitValue(), mdToken: 000000000600000a)
+00007fff`23ba0a53 83f80b          cmp     eax,0Bh
+00007fff`23ba0a56 7d0c            jge     00007fff`23ba0a64
+00007fff`23ba0a58 8b5608          mov     edx,dword ptr [rsi+8]
+
+C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\HoistingNotDoWhile.cs @ 17:
+00007fff`23ba0a5b 03fa            add     edi,edx
+
+C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\HoistingNotDoWhile.cs @ 15:
+00007fff`23ba0a5d ffc0            inc     eax
+00007fff`23ba0a5f 83f80b          cmp     eax,0Bh
+00007fff`23ba0a62 7cf7            jl      00007fff`23ba0a5b
+
+C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\HoistingNotDoWhile.cs @ 20:
+00007fff`23ba0a64 8bc7            mov     eax,edi
+00007fff`23ba0a66 4883c428        add     rsp,28h
+00007fff`23ba0a6a 5e              pop     rsi
+00007fff`23ba0a6b 5f              pop     rdi
+00007fff`23ba0a6c c3              ret
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+public class HoistingNotDoWhile
+{
+    public int a = 123;
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public int Run()
+    {
+        var sum = 0;
+
+        for (; ShouldContinue(); )
+        {
+            sum += a;
+        }
+
+        return sum;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private bool ShouldContinue()
+    {
+        return new Random().Next(100) <= 90;
+    }
+}
+
+
+
+0:003> !U 00007fff23a96460
+Normal JIT generated code
+HoistingInDotNetExamples.HoistingNotDoWhile.Run()
+Begin 00007fff23ba0a40, size 31
+*** WARNING: Unable to verify checksum for HoistingInDotNetExamples.exe
+
+C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\HoistingNotDoWhile.cs @ 13:
+00007fff`23ba0a40 57              push    rdi
+00007fff`23ba0a41 56              push    rsi
+00007fff`23ba0a42 4883ec28        sub     rsp,28h
+00007fff`23ba0a46 488bf1          mov     rsi,rcx
+00007fff`23ba0a49 33ff            xor     edi,edi
+
+C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\HoistingNotDoWhile.cs @ 15:
+00007fff`23ba0a4b 488bce          mov     rcx,rsi
+00007fff`23ba0a4e e835f8ffff      call    00007fff`23ba0288 (HoistingInDotNetExamples.HoistingNotDoWhile.ShouldContinue(), mdToken: 000000000600000a)
+00007fff`23ba0a53 84c0            test    al,al
+00007fff`23ba0a55 7411            je      00007fff`23ba0a68
+
+C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\HoistingNotDoWhile.cs @ 17:
+00007fff`23ba0a57 8b4e08          mov     ecx,dword ptr [rsi+8]
+00007fff`23ba0a5a 03f9            add     edi,ecx
+
+C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\HoistingNotDoWhile.cs @ 15:
+00007fff`23ba0a5c 488bce          mov     rcx,rsi
+00007fff`23ba0a5f e824f8ffff      call    00007fff`23ba0288 (HoistingInDotNetExamples.HoistingNotDoWhile.ShouldContinue(), mdToken: 000000000600000a)
+00007fff`23ba0a64 84c0            test    al,al
+00007fff`23ba0a66 75ef            jne     00007fff`23ba0a57
+
+C:\temp\HoistingInDotNetExamples\HoistingInDotNetExamples\HoistingNotDoWhile.cs @ 20:
+00007fff`23ba0a68 8bc7            mov     eax,edi
+00007fff`23ba0a6a 4883c428        add     rsp,28h
+00007fff`23ba0a6e 5e              pop     rsi
+00007fff`23ba0a6f 5f              pop     rdi
+00007fff`23ba0a70 c3              ret

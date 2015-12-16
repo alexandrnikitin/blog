@@ -439,7 +439,50 @@ public double Run(int a)
 00007fff`23b809e3 c3              ret
 ```
 
-not do while loop
+#### Not do while loop
+
+Isn't hoisted. JIT isn't sure that the loop will be executed. JIT tries to optimize the path that definitely will be executed so that doesn't perform unnecessary read from the main memory.
+
+```csharp
+public class HoistingNotDoWhile
+{
+    public int a = 123;
+
+    public int Run()
+    {
+        var sum = 0;
+        for (; ShouldContinue(); )
+        {
+            sum += a;
+        }
+        return sum;
+    }
+}
+```
+
+```
+00007fff`23ba0a40 57              push    rdi
+00007fff`23ba0a41 56              push    rsi
+00007fff`23ba0a42 4883ec28        sub     rsp,28h
+00007fff`23ba0a46 488bf1          mov     rsi,rcx
+00007fff`23ba0a49 33ff            xor     edi,edi
+00007fff`23ba0a4b 488bce          mov     rcx,rsi
+00007fff`23ba0a4e e835f8ffff      call    00007fff`23ba0288 (HoistingInDotNetExamples.HoistingNotDoWhile.ShouldContinue(), mdToken: 000000000600000a)
+00007fff`23ba0a53 84c0            test    al,al
+00007fff`23ba0a55 7411            je      00007fff`23ba0a68
+00007fff`23ba0a57 8b4e08          mov     ecx,dword ptr [rsi+8]
+00007fff`23ba0a5a 03f9            add     edi,ecx
+00007fff`23ba0a5c 488bce          mov     rcx,rsi
+00007fff`23ba0a5f e824f8ffff      call    00007fff`23ba0288 (HoistingInDotNetExamples.HoistingNotDoWhile.ShouldContinue(), mdToken: 000000000600000a)
+00007fff`23ba0a64 84c0            test    al,al
+00007fff`23ba0a66 75ef            jne     00007fff`23ba0a57
+00007fff`23ba0a68 8bc7            mov     eax,edi
+00007fff`23ba0a6a 4883c428        add     rsp,28h
+00007fff`23ba0a6e 5e              pop     rsi
+00007fff`23ba0a6f 5f              pop     rdi
+00007fff`23ba0a70 c3              ret
+```
+
 structs?
 
 
