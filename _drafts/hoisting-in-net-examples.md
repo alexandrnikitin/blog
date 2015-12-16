@@ -269,21 +269,56 @@ public int Arg(int a)
 00007fff`23b907e8 83f90b          cmp     ecx,0Bh
 00007fff`23b907eb 7cf7            jl      00007fff`23b907e4
 00007fff`23b907ed c3              ret
+```  
+
+.
+
+#### Many exits in a loop
+
+Not hoisted, read from main memory, JIT optimizes only the first entry block in that case.
+
+```csharp
+public class HoistingManyExits
+{
+    public int a = 123;
+
+    public int ManyExits()
+    {
+        var sum = 0;
+
+        for (var i = 0; i < 11; i++)
+        {
+            if (sum > 123) return sum;
+            sum += a;
+        }
+
+        return sum;
+    }
+}
 ```
 
+```
+00007fff`23ba0810 33c0            xor     eax,eax
+00007fff`23ba0812 33d2            xor     edx,edx
+00007fff`23ba0814 83f87b          cmp     eax,7Bh
+00007fff`23ba0817 7e01            jle     00007fff`23ba081a
+00007fff`23ba0819 c3              ret
+00007fff`23ba081a 448b4108        mov     r8d,dword ptr [rcx+8]
+00007fff`23ba081e 4103c0          add     eax,r8d
+00007fff`23ba0821 ffc2            inc     edx
+00007fff`23ba0823 83fa0b          cmp     edx,0Bh
+00007fff`23ba0826 7cec            jl      00007fff`23ba0814
+00007fff`23ba0828 c3              ret
+```
 
 Hoisted:
 
 Not hoisted:
 
-
-local var
 many vars
-
 
 not do while loop
 structs?
-many exits
 
 
   [post-part1]: https://alexandrnikitin.github.io/blog/hoisting-in-net-explained/
