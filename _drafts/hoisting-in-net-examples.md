@@ -152,14 +152,67 @@ public class HoistingStatic
 00007ffa`a05205a3 c3              ret
 ```
 
+#### Try catch block
+
+Isn't hoisted
+
+```csharp
+public int Test(int a)
+{
+    var sum = 0;
+
+    for (var i = 0; i < 11; i++)
+    {
+        try
+        {
+            sum += a;
+        }
+        catch { }
+    }
+
+    return sum;
+}
+```
+
+```
+00007fff`23b706f0 55              push    rbp
+00007fff`23b706f1 4883ec10        sub     rsp,10h
+00007fff`23b706f5 488d6c2410      lea     rbp,[rsp+10h]
+00007fff`23b706fa 48892424        mov     qword ptr [rsp],rsp
+00007fff`23b706fe 895518          mov     dword ptr [rbp+18h],edx
+00007fff`23b70701 33c0            xor     eax,eax
+00007fff`23b70703 8945fc          mov     dword ptr [rbp-4],eax
+00007fff`23b70706 8945f8          mov     dword ptr [rbp-8],eax
+00007fff`23b70709 8b45fc          mov     eax,dword ptr [rbp-4]
+00007fff`23b7070c 8b5518          mov     edx,dword ptr [rbp+18h]
+00007fff`23b7070f 03c2            add     eax,edx
+00007fff`23b70711 8945fc          mov     dword ptr [rbp-4],eax
+00007fff`23b70714 8b45f8          mov     eax,dword ptr [rbp-8]
+00007fff`23b70717 ffc0            inc     eax
+00007fff`23b70719 8945f8          mov     dword ptr [rbp-8],eax
+00007fff`23b7071c 8b45f8          mov     eax,dword ptr [rbp-8]
+00007fff`23b7071f 83f80b          cmp     eax,0Bh
+00007fff`23b70722 7ce5            jl      00007fff`23b70709
+00007fff`23b70724 8b45fc          mov     eax,dword ptr [rbp-4]
+00007fff`23b70727 488d6500        lea     rsp,[rbp]
+00007fff`23b7072b 5d              pop     rbp
+00007fff`23b7072c c3              ret
+00007fff`23b7072d 55              push    rbp
+00007fff`23b7072e 4883ec10        sub     rsp,10h
+00007fff`23b70732 488b29          mov     rbp,qword ptr [rcx]
+00007fff`23b70735 48892c24        mov     qword ptr [rsp],rbp
+00007fff`23b70739 488d6d10        lea     rbp,[rbp+10h]
+00007fff`23b7073d 488d05d0ffffff  lea     rax,[00007fff`23b70714]
+00007fff`23b70744 4883c410        add     rsp,10h
+00007fff`23b70748 5d              pop     rbp
+00007fff`23b70749 c3              ret
+```
+
 Hoisted:
-
-
 
 Not hoisted:
 
 
-try block
 local var
 many vars
 
