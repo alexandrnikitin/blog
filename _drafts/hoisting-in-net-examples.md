@@ -241,6 +241,35 @@ public class HoistingField
 00007fff`23b907c0 c3              ret
 ```
 
+#### Arg
+
+Hoisted, we don't read from stack at each iteration.
+
+```csharp
+public int Arg(int a)
+{
+    var sum = 0;
+
+    for (var i = 0; i < 11; i++)
+    {
+        sum += a;
+    }
+
+    return sum;
+}
+```
+
+```
+00007fff`23b907e0 33c0            xor     eax,eax
+00007fff`23b907e2 33c9            xor     ecx,ecx
+00007fff`23b907e4 03c2            add     eax,edx
+00007fff`23b907e6 ffc1            inc     ecx
+00007fff`23b907e8 83f90b          cmp     ecx,0Bh
+00007fff`23b907eb 7cf7            jl      00007fff`23b907e4
+00007fff`23b907ed c3              ret
+```
+
+
 Hoisted:
 
 Not hoisted:
