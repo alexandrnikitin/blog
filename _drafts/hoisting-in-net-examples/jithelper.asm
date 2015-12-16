@@ -1,6 +1,8 @@
 
-        private class BaseClass<T>
+        public class BaseClass<T>
         {
+            private List<T> _list = new List<T>();
+
             public void Run()
             {
                 for (var i = 0; i < 11; i++)
