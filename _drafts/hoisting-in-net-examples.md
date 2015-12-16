@@ -12,13 +12,6 @@ share: true
 
 :warning: This post contains a bunch of examples of the JIT hoisting optimization with assembly listings. It's based on the theoretical part ["Hoisting in .NET Explained"][post-part1]
 
-### Preamble: How to get assembly code
-
-Windbg
-
-Library?
-
-BenchmarkDotNet
 
 ### Examples
 
