@@ -4,76 +4,103 @@ title: "Bloom filter for Scala"
 date: 2016-02-09T18:03:32+02:00
 modified:
 categories: [Scala, Algorithms]
-excerpt:
+excerpt: The fastest implementation of Bloom filter for Scala
 tags: [Scala, Algorithms]
 comments: true
 share: true
 ---
 
 
-# TLDR
-Super fast (the fastest)
-No elements amount limitation
-Extendable - plug in any hash algorithm or type
+### TL;DR
 
-# What beast is that Bloom filter?
+[Sources on github](github-source)  
+The fastest implementation for JVM.  
+No limits to the number of elements and false positive rate.  
+Extendable - plug-in any hash algorithm or element type to hash.  
+
+### Intro
+
+>A Bloom filter is a space-efficient probabilistic data structure that is used to test whether an element is a member of a set. False positive matches are possible, but false negatives are not. In other words, a query returns either "possibly in set" or "definitely not in set". Elements can be added to the set, but not removed
+
+wikipedia
 
 Short intro
+Optimization for memory.
+It can answer one question: does an element belong to a set or not.
+(on the source of truth.)(wiki-bloom-filter)
+I find the following explanation very I couldn't do it better. (https://sc5.io/posts/what-are-bloom-filters-and-why-are-they-useful/)
 
-# WHY?
 
-Because alternatives sucks!!!
+### WHY?
 
-All have size limitations
+Because alternatives suck! They don't fit our needs. You just know that you can do better. Frankly, nothing is true. You just get bored sometimes. [theme song](youtube-bored)
 
-Guava:
+All have size limits caused by JVM array index size.
+You cannot create a bloom filter for m elements with false positive rate 1% There are workarounds for that.
+
+#### Google's Guava
+
+Guava: - the best. But
 Hashing - allocations
 
 It was fun to review. It always fun.
 // You down with FPP? (Yeah you know me!) Who's down with FPP? (Every last homie!)
 
-Breeze:
-Hash of object. WTF?? Murmur? seriously?
+#### Twitter's Algebird
+
+String is universal format you know
+Hashes x4??
+Performance? Pooooooor
+EWAHCompressedBitmap - random access, arguable solution
+
+
+#### Breeze
+It takes a hash of the object. WTF?? Murmur? for what, distribution? seriously?
 Allocations
 Syntax
 
-Algebird:
-Hashes x4??
-String is universal format you know
-Performance? Pooooooor
-EWAHCompressedBitmap - random access
+#### Others
 
-# How does it work?
+TODO
 
+### How does it work?
+
+Uses unsafe to create huge arrays.
 MurmurHash3
 Generic version of it
 Pluggable via implicit, type class pattern.
+Still have doubts?
 
 Small, No dependencies TODO
 
-# Benchmarks
+### Benchmarks
 
-Everybody love benchmarks
-Here they are.
+We all love benchmarks, right? Numbers in vacuum, they are cool. And here they are:
 
 No difference in element size, within statistic error
 ThreadLocal - no difference in synthetic tests - Allocation is extremely cheap
+I hope JVM will get structs during my dev life.
 
 
-# When to use?
+### When to use?
 
 You are not satisfied with existing solutions.
-High performance systems
-Systems with high amount of unique items.
+High performance systems.
+Systems with a lot of data and unique items.
 
 
 When not
-You are ok with your current solution
-Most software doesn’t have to be fast
-You want to use only proven libraries from loud names like Google or Twitter (it wasn't me :)
+You are ok with your current solution. Most software doesn’t have to be fast.
+You want to use only proven and battle tested libraries from loud names like Google or Twitter
 
 
-# TODO
+### TODO
 
+Feedback is really welcome and appreciated
 Java support
-Immutable version
+Immutable version. I don't know why?)
+
+  [github-source]: https://github.com/alexandrnikitin/bloom-filter-scala
+  [youtube-bored]: https://www.youtube.com/watch?v=-WdYo3WlETY
+  [wiki-bloom-filter]: https://en.wikipedia.org/wiki/Bloom_filter
+  [sc5-bloom-filter]: https://sc5.io/posts/what-are-bloom-filters-and-why-are-they-useful/
