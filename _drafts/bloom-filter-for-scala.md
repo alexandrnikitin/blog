@@ -22,18 +22,18 @@ Extendable - plug-in any hash algorithm or element type to hash.
 
 >A Bloom filter is a space-efficient probabilistic data structure that is used to test whether an element is a member of a set. False positive matches are possible, but false negatives are not. In other words, a query returns either "possibly in set" or "definitely not in set". Elements can be added to the set, but not removed
 
-wikipedia
+from wikipedia
 
 Short intro
 Optimization for memory.
 It can answer one question: does an element belong to a set or not.
 (on the source of truth.)(wiki-bloom-filter)
-I find the following explanation very I couldn't do it better. (https://sc5.io/posts/what-are-bloom-filters-and-why-are-they-useful/)
+I find the following explanation very I couldn't do it better. ["What are Bloom filters, and why are they useful?" by Max Pagels][sc5-bloom-filter]
 
 
 ### WHY?
 
-Because alternatives suck! They don't fit our needs. You just know that you can do better. Frankly, nothing is true. You just get bored sometimes. [theme song](youtube-bored)
+Because alternatives suck! They don't fit our needs. You just know that you can do better. Frankly, nothing is true. You just get bored sometimes. [theme song][youtube-bored]
 
 All have size limits caused by JVM array index size.
 You cannot create a bloom filter for m elements with false positive rate 1% There are workarounds for that.
