@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "Pattern: Chain of Handlers"
 date: 2015-11-09T19:30:19+02:00
 modified:

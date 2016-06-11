@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "CoreCLR Review"
 date: 2016-01-06T17:36:55+02:00
 modified:

@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: .NET Generics under the hood
 date: 2015-09-27
 modified: 2015-10-15

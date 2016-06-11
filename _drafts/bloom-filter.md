@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "Bloom filter"
 date: 2016-02-09T18:03:32+02:00
 modified:

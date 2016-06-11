@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "JIT optimization: static readonly to const"
 date: 2015-12-21T20:07:12+02:00
 modified:
@@ -36,7 +36,7 @@ public class MyExampleClass
 
 The `Run()` method will be compiled to the following assembly code:
 
-```igor
+```
 00007ffa`4fa00540 33c0            xor     eax,eax
 00007ffa`4fa00542 33d2            xor     edx,edx
 00007ffa`4fa00544 03c2            add     eax,edx

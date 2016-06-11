@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "Inside CLR: Object allocations"
 date: 2015-10-26
 summary:

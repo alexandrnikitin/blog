@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: Aho-Corasick string matching algorithm
 date: 2015-07-11 17:01:00
 summary: Algorithm explained

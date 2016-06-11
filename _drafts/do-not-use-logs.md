@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "Do Not Use Logs"
 date: 2015-11-05T21:03:55+02:00
 modified:

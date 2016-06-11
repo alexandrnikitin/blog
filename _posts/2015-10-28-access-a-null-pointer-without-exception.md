@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: Access a null pointer without exception
 date: 2015-10-28
 modified: 2015-11-30 16:56:00

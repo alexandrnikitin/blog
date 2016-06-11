@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: "Hoisting in .NET Explained"
 date: 2015-11-26T17:59:46+02:00
 modified:

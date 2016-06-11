@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: A single purpose of automated testing
 date: 2015-10-21
 modified: 2015-10-21

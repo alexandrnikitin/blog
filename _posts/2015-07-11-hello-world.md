@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: single
 title: Hello world!
 date: 2015-07-11
 modified: 2015-09-27
