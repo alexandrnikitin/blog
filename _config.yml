@@ -7,20 +7,20 @@
 
 # Site Settings
 locale                   : "en-US"
-title                    : "Site Title"
+title                    : "The mole is digging"
 title_separator          : "-"
-name                     : "Your Name"
-description              : "An amazing website."
+name                     : "Alexandr Nikitin"
+description              : ""
 url                      : # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
-baseurl                  : # the subpath of your site, e.g. "/blog"
-gh_repo                  :
+baseurl                  : #"/blog"
+gh_repo                  : "https://github.com/alexandrnikitin/blog"
 teaser                   : # filename of teaser fallback teaser image placed in /images/, .e.g. "500x300.png"
 # breadcrumbs            : false # true, false (default)
 words_per_minute         : 200
 comments:
-  provider               : # false (default), "disqus", "discourse", "facebook", "google-plus", custom"
+  provider               : "disqus"
   disqus:
-    shortname            : # https://help.disqus.com/customer/portal/articles/466208-what-s-a-shortname-
+    shortname            : alexandrnikitin
   discourse:
     server               : # https://meta.discourse.org/t/embedding-discourse-comments-via-javascript/31963 , e.g.: meta.discourse.org
   facebook:
@@ -37,7 +37,7 @@ yandex_site_verification :
 
 # Social Sharing
 twitter:
-  username               :
+  username               : nikitin_a_a
 facebook:
   username               :
   app_id                 :
@@ -52,9 +52,9 @@ social:
 
 # Analytics
 analytics:
-  provider               : false # false (default), "google", "google-universal", "custom"
+  provider               : "google-universal"
   google:
-    tracking_id          :
+    tracking_id          : UA-52186816-3
 
 # Google AdSense
 google_ad_client         :
@@ -63,11 +63,11 @@ google_ad_slot           :
 
 # Site Author
 author:
-  name             : "Your Name"
+  name             : "Alexandr Nikitin"
   avatar           : "bio-photo.jpg"
-  bio              : "I am an amazing person."
-  location         : "Somewhere"
-  email            :
+  bio              : "Just another bore"
+  location         :
+  email            : nikitin.alexandr.a@gmail.com
   uri              :
   bitbucket        :
   codepen          :
@@ -75,18 +75,18 @@ author:
   flickr           :
   facebook         :
   foursquare       :
-  github           :
+  github           : alexandrnikitin
   google_plus      :
   keybase          :
   instagram        :
   lastfm           :
-  linkedin         :
+  linkedin         : alexandrnikitin
   pinterest        :
   soundcloud       :
-  stackoverflow    : # http://stackoverflow.com/users/123456/username
+  stackoverflow    : 974487/alexandr-nikitin
   steam            :
   tumblr           :
-  twitter          :
+  twitter          : nikitin_a_a
   vine             :
   weibo            :
   xing             :
@@ -97,6 +97,7 @@ author:
 include:
   - .htaccess
   - _pages
+  - share
 exclude:
   - "*.sublime-project"
   - "*.sublime-workspace"
@@ -148,8 +149,8 @@ kramdown:
 
 
 # Outputting
-permalink: /:categories/:title/
-paginate: 5 # amount of posts to show
+permalink: /:title/
+paginate: 10 # amount of posts to show
 paginate_path: /page:num/
 timezone: # http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 
