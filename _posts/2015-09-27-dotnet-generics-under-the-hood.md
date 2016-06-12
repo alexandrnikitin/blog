@@ -408,7 +408,7 @@ My first thoughts were like WAT?? What programming is that when you add two empt
 
 And after all that digging, [here's the fix:][github-fix]
 <figure>
-	<a href="{{ site.url }}/images/dotnet-generics-under-the-hood/the-fix.png"><img src="{{ site.url }}/images/dotnet-generics-under-the-hood/the-fix.png"></a>
+	<a href="{{ site.url }}{{ site.baseurl }}/images/dotnet-generics-under-the-hood/the-fix.png"><img src="{{ site.url }}{{ site.baseurl }}/images/dotnet-generics-under-the-hood/the-fix.png"></a>
 </figure>
 Basically, it says that point \#3 "Global cache lookup" in the list of optimizations mentioned above doesn't work as expected (or at all). Take a look at the comment above the changed lines - it wasn't changed because it was right. That rare moment... :open_mouth:
 

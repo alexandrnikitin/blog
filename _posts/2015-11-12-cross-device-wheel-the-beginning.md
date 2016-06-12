@@ -16,7 +16,7 @@ _Note: Originally posted in [the company's engineering blog][adform-post]._
 
 For us, it all has started with a date… The date of our wedding.
 
-![The wedding date]({{ site.url }}/images/cross-device-wheel-the-beginning/wedding-date.png)
+![The wedding date]({{ site.url }}{{ site.baseurl }}/images/cross-device-wheel-the-beginning/wedding-date.png)
 
 A group of product managers and owners came to us, developers, with an idea of the Cross-Device solution and “some” requirements. The following business requirements were indicated:
 
@@ -35,14 +35,14 @@ People, who came to us were .NET haters and us… Well, we laughed at 1 million 
 ### We are architects
 
 We started working on a proof of concept: we chose Scala as our programming language, Aerospike as a database, and Netty for the API. Straightforward mapping from cookies and deterministic IDs to Unique IDs was implemented in the first version and we delivered right on time. We even had some time to work on the design and architecture. As experienced guys in the team, we already knew that monoliths suck and microservices is the obvious way to go.
-![monolith vs microservices]({{ site.url }}/images/cross-device-wheel-the-beginning/monolith-microservices.jpg)
+![monolith vs microservices]({{ site.url }}{{ site.baseurl }}/images/cross-device-wheel-the-beginning/monolith-microservices.jpg)
 
 The solution evolved over time. We have made internal integrations with Ad Serving, DMP and DSP platforms as well as several external integrations with Cross-Device data providers and pixel integrations with publishers. Targeting and attribution was covered later on; and here is how our architecture looks like at the moment:
-![microservices]({{ site.url }}/images/cross-device-wheel-the-beginning/architecture.jpg)
+![microservices]({{ site.url }}{{ site.baseurl }}/images/cross-device-wheel-the-beginning/architecture.jpg)
 
 ### How Do We Work?
 
-![90-fellas]({{ site.url }}/images/cross-device-wheel-the-beginning/90-fellas.gif)
+![90-fellas]({{ site.url }}{{ site.baseurl }}/images/cross-device-wheel-the-beginning/90-fellas.gif)
 
 We are not using Scrum, Kanban, or sprints; there is no planning, retro sessions and reviews; there are no estimates and velocity metrics.
 
@@ -52,7 +52,7 @@ Instead, we are [programming (obviously J)][programming-motherfucker] using the 
 
 I, personally, love .NET and think that it is the best platform for rapid development of common needs. In specific areas, like High Load, however there are better solutions. You could be really good at .NET but, come on, it could still be compared to playing football on high heels.
 
-![net-high-load]({{ site.url }}/images/cross-device-wheel-the-beginning/net-high-load.gif)
+![net-high-load]({{ site.url }}{{ site.baseurl }}/images/cross-device-wheel-the-beginning/net-high-load.gif)
 
 Now, back to Scala. The main point here is that it is the gateway to the Java and Linux world. I would say that Scala is “higher” than C# or Java. It has interesting concepts and patterns to learn and use.
 

@@ -49,7 +49,7 @@ These two methods are semantically the same and produce the same effect. That mo
 Everything it can! And it does! JIT performs the hoisting optimization for us and even better us!!!
 
 
-![Good news everyone!]({{ site.url }}/images/hoisting-in-net-explained/good-news.jpg)
+![Good news everyone!]({{ site.url }}{{ site.baseurl }}/images/hoisting-in-net-explained/good-news.jpg)
 
 Unfortunately, there's no information on the internet at all. Searching [Google for "hoisting .NET"][google-hoisting] doesn't show anything, but trivial examples of hoisting a length of an array and a lot of JavaScript. MSDN keep silent too. There's the RyuJIT overview page on github that has a short description of [the "Loop Code Hoisting".][github-docs-lch]
 The fact that the hoisting optimization exists in JIT is already a good sign and good enough to know. But good enough isn't enough for us, right? We're lucky ones, we have the sources of CoreCLR! Let's take a look at what is there.
