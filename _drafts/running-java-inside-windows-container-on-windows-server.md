@@ -1,10 +1,9 @@
 ---
 title:  "Running Java inside Windows container on Windows server"
-excerpt: "TBA"
-categories:
-  - JVM, Docker
-tags:
-  - Java, Docker
+excerpt: "You can run Java inside Windows docker container which is hosted on Windows server. And here's how..."
+categories: [Docker]
+tags: [Just For Fun, Java, Docker, Windows]
+layout: single
 comments: true
 share: true
 ---
@@ -16,42 +15,53 @@ All you need is to install Docker on Microsoft Server 2016 and create/pull a doc
 
 ### A new era?
 
-There was(is?) a hype around .NET Core - open source, Linux support. People exulted at running .NET Core application inside Linux containers on Linux servers.
+There was(is?) a hype around .NET Core - open source, Linux support. People exulted at running .NET Core application inside Linux containers on Linux servers. Which is very cool, I sure.
 But can we do the completely opposite act. Can we run Java inside Windows container hosted on Windows server. Let's figure it out!
 I stay away for reasons
 
 ### Windows and Docker
 
-We need a system running Windows Server 2016 Technical Preview 5. Virtual machine works fine. BTW, It works on Windows 10 too.
+We need a system running Windows Server 2016 Technical Preview 5. Virtual machine works fine. (BTW, It works on Windows 10 too.)
 
 TODO Compare docker repos
 
 elevated PowerShell session.
 
-```powershell
-#  Install Container Feature
-Install-WindowsFeature containers
-Restart-Computer -Force # Yeah, it's still Windows
 
-# Install Docker
-New-Item -Type Directory -Path 'C:\Program Files\docker\'
-Invoke-WebRequest https://aka.ms/tp5/b/dockerd -OutFile $env:ProgramFiles\docker\dockerd.exe
-Invoke-WebRequest https://aka.ms/tp5/b/docker -OutFile $env:ProgramFiles\docker\docker.exe
+#### 1. Install Container Feature
+```powershell
+Install-WindowsFeature containers
+Restart-Computer -Force # Yeah, it's still Windows ¯\_(ツ)_/¯
+```
+
+#### 2. Install Docker
+```powershell
+# Create a directory
+New-Item -Type Directory -Path 'C:\Program Files\Docker\'
+# Download the Docker daemon
+Invoke-WebRequest https://aka.ms/tp5/b/dockerd -OutFile $env:ProgramFiles\Docker\dockerd.exe
+# Download the Docker client
+Invoke-WebRequest https://aka.ms/tp5/b/docker -OutFile $env:ProgramFiles\Docker\docker.exe
+# Add the Docker directory to the system path
 [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Program Files\Docker", [EnvironmentVariableTarget]::Machine)
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+# Install as a Windows service
 dockerd --register-service
 Start-Service Docker
 ```
 
-```
+#### 3. Install Base Container Image
+
+the Windows Server Core base image
+
+```powershell
 Install-PackageProvider ContainerImage -Force
 Install-ContainerImage -Name WindowsServerCore
 Restart-Service docker
 docker tag windowsservercore:10.0.14300.1000 windowsservercore:latest
-docker images
 ```
 
-If we check our pulled images we will see
+If we check installed images we will see the following picture. (Don't look at the image sizes otherwise you'll be scared.)
 
 ```
 PS C:\Windows\system32> docker images
@@ -60,20 +70,10 @@ windowsservercore   10.0.14300.1000     dbfee88ee9fd        11 weeks ago        
 windowsservercore   latest              dbfee88ee9fd        11 weeks ago        9.344 GB
 ```
 
-Don't look at the image sizes. They are f* huge.
-
-That's it. You're done with installation.
+If the command executed successfully and we see the images then we are good. That's all we need to start with container images.
 
 
-
-Let's launch the image we have:
-
-```
-docker pull microsoft/iis:windowsservercore
-docker images
-docker run -d -p 80:80 microsoft/iis:windowsservercore ping -t localhost
-```
-
+### Windows container images
 
 Let's have a look at the images that Microsoft provides:
 
@@ -95,54 +95,43 @@ microsoft/sample-ruby:windowsservercore      Ruby installed in a Windows Server 
 microsoft/sample-sqlite:windowsservercore    SQLite installed in a Windows Server Core ...   1                    [OK]
 ```
 
-No Java unfortunately. How come???
-Let's create it.
+It's long enough for the start: .NET, IIS, Go, Python, Ruby, MySQL, ... Wait! Where's Java? How come??? Okay, Let's create it by ourselves.
+
+Create a Dockerfile, `c:\java-windows-docker\Dockerfile`, and put the following lines inside:
 
 ```
-new-item c:\build\Dockerfile -Force
-
-notepad c:\build\Dockerfile
-
-FROM microsoft/iis:windowsservercore
+FROM windowsservercore
 RUN powershell (new-object System.Net.WebClient).Downloadfile('http://javadl.oracle.com/webapps/download/AutoDL?BundleId=210185', 'C:\jre-8u91-windows-x64.exe'); start-process -filepath C:\jre-8u91-windows-x64.exe -passthru -wait -argumentlist "/s,INSTALLDIR=c:\Java\jre1.8.0_91,/L,install64.log"; del C:\jre-8u91-windows-x64.exe
-
-docker build -t java-windows c:\Build
+CMD [ "c:\\Java\\jre1.8.0_91\\bin\\java.exe", "-version"]
 ```
 
+It downloads the Java 8 Update 91 Windows installer and silently installs it to `c:\Java\jre1.8.0_91`. After start, the container prints out the java version.
+Let's build the image:
 
-```java
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
-
-public class Server {
-
-    public static void main(String[] args) throws Exception {
-        HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
-        server.createContext("/ping", new MyHandler());
-        server.setExecutor(null);
-        server.start();
-    }
-
-    static class MyHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange t) throws IOException {
-            String response = "pong";
-            t.sendResponseHeaders(200, response.length());
-            OutputStream os = t.getResponseBody();
-            os.write(response.getBytes());
-            os.close();
-        }
-    }
-}
+```
+docker build -t java-windows-docker c:\java-windows-docker
 ```
 
+And if we run it...
+
+```
+PS C:\Windows\system32> docker run java-windows-docker
+java version "1.8.0_91"
+Java(TM) SE Runtime Environment (build 1.8.0_91-b15)
+Java HotSpot(TM) 64-Bit Server VM (build 25.91-b15, mixed mode)
+```
+
+We get Java running. Wow! Amazing!! We have Java running inside a Windows container that is hosted on Windows server. Frankly, I won't believe it a couple of years ago.
 
 
+Let's try to pull a linux image:
 
+```
+PS C:\Windows\system32> docker pull ubuntu
+Using default tag: latest
+latest: Pulling from library/ubuntu
+
+Last layer "031c24a19e4b1631a74dff3fda414aa92792d2a484bd60a3bf4d5ea600a2351a" does not have a base layer reference
+```
 
 Linux images aren't supported. Yet?
