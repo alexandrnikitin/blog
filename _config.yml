@@ -98,6 +98,7 @@ include:
   - .htaccess
   - _pages
   - share
+  - assets/favicon
 exclude:
   - "*.sublime-project"
   - "*.sublime-workspace"
