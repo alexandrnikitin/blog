@@ -1,6 +1,6 @@
 ---
-title:  "Running Java inside Windows container on Windows server"
-excerpt: "You can run Java inside Windows docker container which is hosted on Windows server. And here's how..."
+title:  "Running Java inside a Windows container on a Windows server"
+excerpt: "You can run Java inside a Windows container which is hosted on a Windows server. And here's how..."
 categories: [Docker]
 tags: [Just For Fun, Java, Docker, Windows]
 layout: single
@@ -9,14 +9,14 @@ share: true
 ---
 
 ### TL;DR
-You can run .NET/Java/Node/Whatever inside Windows container hosted on Windows server.
-All you need is to install Docker on Microsoft Server 2016 and create/pull a docker image from a registry.
+
+You can run .NET/Java/Node.js/Whatever inside Windows containers hosted on Windows servers. All you need is: Windows Server 2016 (Windows 10), install Docker, install the Windows base image, create/pull a docker image from a registry.
 
 
 ### A new era?
 
-There was(is?) a hype around .NET Core - open source, Linux support. People exulted at running .NET Core application inside Linux containers on Linux servers. Which is very cool, I sure.
-But can we do the completely opposite act. Can we run Java inside Windows container hosted on Windows server. Let's figure it out!
+There was(is?) a hype around .NET Core: C# language, .NET Framework and Runtime were open-sourced. They got Linux support. People exulted at running .NET Core applications inside Linux containers on Linux servers. Which is very cool, I'm sure. Let's put .NET Core and tools a bit aside otherwise I end
+But can we do the completely opposite act? Can we run Java inside Windows container hosted on Windows server? Let's figure it out!
 I stay away for reasons
 
 ### Windows and Docker
@@ -105,7 +105,7 @@ RUN powershell (new-object System.Net.WebClient).Downloadfile('http://javadl.ora
 CMD [ "c:\\Java\\jre1.8.0_91\\bin\\java.exe", "-version"]
 ```
 
-It downloads the Java 8 Update 91 Windows installer and silently installs it to `c:\Java\jre1.8.0_91`. After start, the container prints out the java version.
+It downloads the Java 8 Update 91 Windows installer and silently installs it to `c:\Java\jre1.8.0_91`. After start, the container prints out the java version.  
 Let's build the image:
 
 ```
@@ -121,17 +121,18 @@ Java(TM) SE Runtime Environment (build 1.8.0_91-b15)
 Java HotSpot(TM) 64-Bit Server VM (build 25.91-b15, mixed mode)
 ```
 
-We get Java running. Wow! Amazing!! We have Java running inside a Windows container that is hosted on Windows server. Frankly, I won't believe it a couple of years ago.
+We get Java running. Wow! Amazing!! We have Java running inside a Windows container that is hosted on a Windows server. Frankly, I won't believe this a couple of years ago. But now things get real!
 
+What about Linux containers on Windows server? Unfortunately they aren't supported. You will get an error if you try to pull/run one. But, I believe, it's just a matter of time and we could run .NET Core inside a Linux container on a Windows server soon. Such a crazy time!
 
-Let's try to pull a linux image:
+### References
 
-```
-PS C:\Windows\system32> docker pull ubuntu
-Using default tag: latest
-latest: Pulling from library/ubuntu
+MSDN: [Windows Containers Documentation](https://msdn.microsoft.com/virtualization/windowscontainers/containers_welcome)
 
-Last layer "031c24a19e4b1631a74dff3fda414aa92792d2a484bd60a3bf4d5ea600a2351a" does not have a base layer reference
-```
+MSDN: [Quick Start: Windows Containers on Windows Server](https://msdn.microsoft.com/en-us/virtualization/windowscontainers/quick_start/quick_start_windows_server)
 
-Linux images aren't supported. Yet?
+Channel 9: [Containers 101 with Microsoft and Docker](https://channel9.msdn.com/Blogs/containers/Containers-101-with-Microsoft-and-Docker)
+
+MSDN: [Windows Containers on Windows 10](https://msdn.microsoft.com/en-us/virtualization/windowscontainers/quick_start/quick_start_windows_10)
+
+GitHub: [.NET Core Docker Images](https://github.com/dotnet/dotnet-docker)
