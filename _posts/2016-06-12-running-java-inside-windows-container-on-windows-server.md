@@ -17,7 +17,7 @@ You can run .NET/Java/Node.js/Whatever inside native Windows containers hosted o
 
 There was(is?) a hype around Microsoft and .NET: C# language, .NET Framework and CLR Runtime have been open-sourced. They got Linux support. People exulted at running .NET Core applications inside Linux containers on Linux servers. Which is very cool, I'm sure. But let's put .NET Core and tools aside otherwise I'll end up crying (early adopters would understand).
 
-There is an idea stuck in my head since: can we do the completely opposite act? Can we run Java inside a Windows container hosted on a Windows server? I don't mean tools like [Boot2Docker](http://boot2docker.io/), [Kitematic](https://kitematic.com/) or new [Docker Toolbox](https://www.docker.com/products/docker-toolbox). They are all essentially a Linux VM. What I mean is native Docker experience on Windows where containers run natively without any virtualization layer.
+There is an idea stuck in my head since: can we do the completely opposite act? Can we run Java inside a Windows container hosted on a Windows server? I don't mean tools like [Boot2Docker](http://boot2docker.io/), [Kitematic](https://kitematic.com/) or new [Docker Toolbox](https://www.docker.com/products/docker-toolbox). They are all essentially a Linux VM. What I mean is **native Docker experience on Windows** where containers run natively **without any virtualization layer**.
 
 Let's figure it out!
 
