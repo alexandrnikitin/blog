@@ -37,12 +37,14 @@ Because available ones suck! :rage: They don't suit our needs because of perform
 All of them have size limitation caused by JVM array size limit. In JVM, arrays use integers for index, therefore the max size is limited by the max size of integers which is 2 147 483 647. If we create an array of longs to store bit than 64 bit * 2 147 483 647 = 137 438 953 408 bit we can store. This takes ~15 GB of memory. You can store ~10 000 000 000 elements with 0.1% probability.
 Sure, you can create several Bloom filters or mod by hash but
 
+Let's take a look at some of the available solutions.
 
-#### Google's Guava
+### Google's Guava
 
-Guava is the best library I've seen. It works as expected. It's fast enough.
-But... Surprisingly, It allocates!
-Here's a list of [all allocations instrumented][github-allocation-instrumenter] during `mightContain()` call for 100 symbols string.
+[Guava][github-guava] is a high quality core library from Google which contains such projects as collections, primitives, concurrency, I/O, caching and so forth. And it has the [Bloom filter][github-guava-bloomfilter] data structure.
+ It's the default option for me to start from. It works as expected. It's fast. But...
+
+ Surprisingly, it allocates! I used [the Google's Allocation Instrumenter][github-allocation-instrumenter] to print out all allocations. The following allocation happend for the check whether a 100 symbols string present in a set or not. Here's the list:
 
 ```
 I just allocated the object [B@39420d59 of type byte whose size is 40 It's an array of size 23
@@ -61,13 +63,14 @@ I just allocated the object 36db757cdd5ae408ef61dca2406d0d35 of type com/google/
 
 This is 1016 bytes!! This is A LOT!!
 
-It was fun to review. You can find some nice Easter eggs there. For example this one. It always is.
+Anyway, it was fun to review the code. Sometimes you can find some nice Easter eggs there. For example this one:
+
 ![The song]({{ site.url }}{{ site.baseurl }}/images/bloom-filter-for-scala/guava-review.png)
 
-These lines are from [the song][wiki-opp]
+These lines are from [the "O.P.P." song by "Naughty by Nature" group][wiki-opp] which was very popular in the early 1990s.
 Enjoy [the clip:][youtube-opp]
 
-#### Twitter's Algebird
+### Twitter's Algebird
 
 It's functional, immutable and monadic and very slooooow!!
 String is universal format you know
@@ -91,7 +94,7 @@ I won't post the list of all allocations because it's pretty long. Allocations f
 The only place where it might be worth to use Twitter's Bloom filter is distribute systems.
 
 
-#### Breeze
+### ScalaNLP's Breeze
 
 "Breeze is a generic, clean and powerful Scala numerical processing library... Breeze is a part of ScalaNLP project, a scientific computing platform for Scala."
 
@@ -207,3 +210,5 @@ Stable Bloom filter
   [youtube-opp]: https://www.youtube.com/watch?v=6xGuGSDsDrM
   [wiki-opp]: https://en.wikipedia.org/wiki/O.P.P._(song)
   [github-breeze-hashcode]: https://github.com/scalanlp/breeze/blob/c12763387cb0741e6d588435d7da92b505f12843/math/src/main/scala/breeze/util/BloomFilter.scala#L36
+  [github-guava]: https://github.com/google/guava
+  [github-guava-bloomfilter]: https://github.com/google/guava/wiki/HashingExplained#bloomfilter
