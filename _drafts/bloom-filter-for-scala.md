@@ -4,7 +4,6 @@ title: "Bloom filter in Scala, the fastest for JVM"
 categories: [Scala, Data structures]
 excerpt: The fastest implementation of Bloom filter for Scala
 tags: [High-performance]
-
 comments: true
 share: true
 ---
@@ -12,11 +11,12 @@ share: true
 
 ### TL;DR
 
+Implementation of Bloom filter in Scala.  
 [The source code on github][github-source]  
 The fastest implementation for JVM. _[(Take me straight to the benchmarks)](#benchmarks)_  
-Zero allocation and highly optimized code
+Zero-allocation and highly optimized code  
 No memory limits, therefore no limits to the number of elements and false positive rate.  
-Extendable - plug-in any hash algorithm or element type to hash.  
+Extendable: plug-in any hash algorithm or element type to hash.  
 Yes, it uses `sun.misc.unsafe` :blush:
 
 ### Intro
@@ -25,18 +25,18 @@ Yes, it uses `sun.misc.unsafe` :blush:
 
 What's Bloom filter in a nutshell:
 
-- Optimization for memory. It comes into play when the whole set doesn't fit into memory.
+- Optimization for memory. It comes into play when you cannot put whole set into memory.
 - Solves the membership problem. It can answer one question: does an element belong to a set or not?
-- Probabilistic (lossy) data structure. It can answer that the element **probably belongs** to the set with some probability.
+- Probabilistic (lossy) data structure. It can answer that an element **probably belongs** to a set with some probability.
 
 I find the following post quite comprehensive ["What are Bloom filters, and why are they useful?"][sc5-bloom-filter] by [Max Pagels TODO][twitter-pagels]. I couldn't do it better, take a look if you aren't familiar with Bloom filters.
 
 
 ### Why yet another Bloom filter?
 
-Because available ones suck! :rage: They don't suit our needs because of performance and memory limitations. Or you just know that you can do it better. ~~Frankly, nothing is true. The reason is that you just get bored sometimes.~~ [(theme song)][youtube-bored]
+~~Because available ones suck!~~ :rage: They don't suit our needs because of performance and memory limitations. Or you just know that you can do it better. Frankly, neither is true. The reason is that you just get bored sometimes. [(_theme song_)][youtube-bored]
 
-The major reason is performance. Working on high-performance and low latency systems, you don't want to see that you are slow because of an external library and it allocates more than your code does. Believe me :neckbeard:, you want to focus on your business logic and have the dependencies as efficient as possible.
+The major reason is performance. Working on high-performance and low latency systems, you don't want to see that you are slow because of an external library and it allocates more than your code does. You want to focus on your business logic and have the dependencies as efficient as possible.
 
 Another reason is memory limitations. All of them have size limitation caused by JVM array size limit. In JVM, arrays use integers for indexes, therefore the max size is limited by the max size of integers which is 2 147 483 647. If we create an array of longs to store bits then we can store 64 bit * 2 147 483 647 = 137 438 953 408 bits. This takes ~15 GB of memory. You can put ~10 000 000 000 elements with 0.1% probability into this Bloom filter. This is more than enough for most software. But when you work with Big Data such as web urls, banner impressions, RTB bid requests, or streams of events and Machine Learning, then 10 billion elements is just the beginning. Sure, you can have workarounds for that: multiple Bloom filters, distribute them across multiple nodes but those workarounds aren't always efficient, can be pricey TODO or don't fit into your architecture.
 
@@ -44,7 +44,7 @@ Let's take a look at some of the available solutions.
 
 ### Google's Guava
 
-[Guava][github-guava] is a high quality core library from Google which contains such modules as collections, primitives, concurrency, I/O, caching, etc. And it has the [Bloom filter][github-guava-bloomfilter] data structure. Guava is the default option to start with for me. It works as expected. It's fast. But...
+[Guava][github-guava] is a high quality core library from Google which contains such modules as collections, primitives, concurrency, I/O, caching, etc. And it has the [Bloom filter][github-guava-bloomfilter] data structure. Guava is the default option to start with for me. It's battle-tested and works as expected. It's fast. But...
 
  Surprisingly, it allocates! I used [the Google's Allocation Instrumenter][github-allocation-instrumenter] to print out all allocations. The following allocations happened for a check whether a 100 symbols string present in a Bloom filter or not. Here's the list:
 
@@ -63,22 +63,22 @@ I just allocated the object java.nio.HeapByteBuffer[pos=0 lim=16 cap=16] of type
 I just allocated the object 36db757cdd5ae408ef61dca2406d0d35 of type com/google/common/hash/HashCode$BytesHashCode whose size is 16
 ```
 
-This is 1016 bytes!! This is A LOT!! Just think about, we take a hash (number) of a short string and check whether the bits are set, and it allocates ~1Kb of data. You could argue that allocations are cheap.
-Yes, they are, and you most probably won't see an impact in isolated micro-benchmarks, but in production it gets much worse: it can stress the GC, cause slow allocation paths, trigger the GC. TODO
+This is 1016 bytes!! Just think about, we calculate a hash number of a short string and check whether the relevant bits are set, and it allocates ~1Kb of data. This is A LOT!! You could argue that allocations are cheap.
+Yes, they are, and you, most probably, won't see an impact in isolated micro-benchmarks, but in production environment it gets much worse: it can stress the GC, lead to slow allocation paths, trigger the GC. TODO
 
 Anyway, it was fun to review the code. Sometimes you can find some nice Easter eggs there. For example this one:
 
 ![The song]({{ site.url }}{{ site.baseurl }}/images/bloom-filter-for-scala/guava-review.png)
 
-These lines are from [the "O.P.P." song by "Naughty by Nature" group][wiki-opp] which was very popular in the early 1990s. He's probably in his 50s at the moment (or was it she?). (Disturbed should be over by this moment. Enjoy [the clip:][youtube-opp])
+These lines are from [the "O.P.P." song by "Naughty by Nature" rap group][wiki-opp] which was very popular in the early 1990s.  Contact with the developer. He's probably in his 50s at the moment (or was it she?). (Disturbed should be over by this moment. Enjoy [the clip:][youtube-opp])
 
 ### Twitter's Algebird
 
 TODO
-It's functional, immutable and monadic and very slooooow!!
-It supports only `string` as the element type.  Yeah, string is the universal format, you know, you can store everything there.
+It's functional, immutable, monadic and very slooooow!!
+It supports only `string` as the element type. Yeah, string is the universal data format, you can store everything there :grinning:
 
-It uses Murmur hash. takes 128 bit and splits it to 4 32 bit hashes. It sets bit for each 32 bit number. Which is quite disputable solution.
+It uses Murmur hash 3. takes 128 bit and splits it to 4 32 bit hashes. It sets bit for each 32 bit number. Which is quite disputable solution.
 
 Going deeper
 What's interesting Twitter's Bloom filter uses `EWAHCompressedBitmap` under the hood which is TODO  
@@ -96,9 +96,9 @@ I put 100,000 random 1000 symbols string to both Bloom filters, Twitter's and mi
 
 I won't post the list of all allocations because it's pretty long. Allocations for 100 symbol string is 1808 bytes. Assuming that we don't allocate new `EWAHCompressedBitmap`s
 
-
-Price to be functional
-going ahead, it's performance is 120 times worse than the Bloom filter proposed by me.
+Persistent data structures
+going ahead, it's performance is 10 times worse for reads and ~100 times for writes than the Bloom filter implemented by me.
+The price is too huge to be functional
 
 ### ScalaNLP's Breeze
 
@@ -122,18 +122,22 @@ for {
 
 It compiles to:
 
-
-
-#### Others
-
+```
 TODO
+```
 
 ### How does it work?
 
+Example:
+
+```scala
+TODO
+```
+
 Zero allocations - tricks with string
 
-Uses unsafe to create huge arrays.
-MurmurHash3
+Uses unsafe to create a huge chuck of memory.
+MurmurHash3 implemented in Scala + as a bonus: 128 bit version for unlimited uniqueness :smile:  
 Generic version of it
 Pluggable via implicit, type class pattern. TODO link to tpole
 Contravariant implicits -> Dotty
@@ -224,6 +228,7 @@ You want it to work out of the box.
 
 ### TODO
 
+TODO Header picture
 Feedback is welcome and appreciated
 Stable Bloom filter
 Cuckoo Bloom filer any experience anybody?
