@@ -9,6 +9,7 @@ share: true
 ---
 
 
+
 ### TL;DR
 
 Implementation of Bloom filter in Scala.  
@@ -18,6 +19,8 @@ Zero-allocation and highly optimized code
 No memory limits, therefore no limits to the number of elements and false positive rate.  
 Extendable: plug-in any hash algorithm or element type to hash.  
 Yes, it uses `sun.misc.unsafe` :blush:
+
+
 
 ### Intro
 
@@ -29,18 +32,21 @@ What's Bloom filter in a nutshell:
 - Solves the membership problem. It can answer one question: does an element belong to a set or not?
 - Probabilistic (lossy) data structure. It can answer that an element **probably belongs** to a set with some probability.
 
-I find the following post quite comprehensive ["What are Bloom filters, and why are they useful?"][sc5-bloom-filter] by [Max Pagels TODO][twitter-pagels]. I couldn't do it better, take a look if you aren't familiar with Bloom filters.
+I find the following post quite comprehensive ["What are Bloom filters, and why are they useful?"][sc5-bloom-filter] by [Max Pagels][twitter-pagels]. I couldn't do it better, take a look if you aren't familiar with Bloom filters.
+
 
 
 ### Why yet another Bloom filter?
 
-~~Because available ones suck!~~ :rage: They don't suit our needs because of performance and memory limitations. Or you just know that you can do it better. Frankly, neither is true. The reason is that you just get bored sometimes. [(_theme song_)][youtube-bored]
+~~Because available ones suck!~~ :rage: They don't suit your needs because of performance or memory limitations. Or you just know that you can do it better. Frankly, neither is true. The reason is that you just get bored sometimes. [(_theme song_)][youtube-bored]
 
-The major reason is performance. Working on high-performance and low latency systems, you don't want to see that you are slow because of an external library and it allocates more than your code does. You want to focus on your business logic and have the dependencies as efficient as possible.
+The major reason is performance. Working on high-performance and low latency systems, you don't want to see that you are slow because of some external library and it allocates more than your code does. You want to focus on your business logic and have the dependencies you rely on to be as efficient as possible.
 
-Another reason is memory limitations. All of them have size limitation caused by JVM array size limit. In JVM, arrays use integers for indexes, therefore the max size is limited by the max size of integers which is 2 147 483 647. If we create an array of longs to store bits then we can store 64 bit * 2 147 483 647 = 137 438 953 408 bits. This takes ~15 GB of memory. You can put ~10 000 000 000 elements with 0.1% probability into this Bloom filter. This is more than enough for most software. But when you work with Big Data such as web urls, banner impressions, RTB bid requests, or streams of events and Machine Learning, then 10 billion elements is just the beginning. Sure, you can have workarounds for that: multiple Bloom filters, distribute them across multiple nodes but those workarounds aren't always efficient, can be pricey TODO or don't fit into your architecture.
+Another reason is memory limitations. All of them have size limitation caused by JVM array size limit. In JVM, arrays use integers for indexes, therefore the max size is limited by the max size of integers which is 2 147 483 647. If we create an array of longs to store bits then we can store 64 bit * 2 147 483 647 = 137 438 953 408 bits. This takes ~15 GB of memory. You can put ~10 000 000 000 elements with 0.1% probability into this Bloom filter. This is more than enough for most software. But when you work with Big Data such as web URLs, banner impressions, [Real-time bidding][wiki-rtb] bid requests, or streams of events and Machine learning, then 10 billion elements is just the beginning. Sure, you can have workarounds for that: multiple Bloom filters, distribute them across multiple nodes, design your software to fit this limitation, but those workarounds aren't always efficient, can be pricey or don't fit into your architecture.
 
 Let's take a look at some of the available solutions.
+
+
 
 ### Google's Guava
 
@@ -64,41 +70,26 @@ I just allocated the object 36db757cdd5ae408ef61dca2406d0d35 of type com/google/
 ```
 
 This is 1016 bytes!! Just think about, we calculate a hash number of a short string and check whether the relevant bits are set, and it allocates ~1Kb of data. This is A LOT!! You could argue that allocations are cheap.
-Yes, they are, and you, most probably, won't see an impact in isolated micro-benchmarks, but in production environment it gets much worse: it can stress the GC, lead to slow allocation paths, trigger the GC. TODO
+Yes, they are, and you, most probably, won't see an impact in isolated micro-benchmarks, but in production environment it gets much worse: it can stress the GC, lead to slow allocation paths, trigger the GC, etc.
 
 Anyway, it was fun to review the code. Sometimes you can find some nice Easter eggs there. For example this one:
 
 ![The song]({{ site.url }}{{ site.baseurl }}/images/bloom-filter-for-scala/guava-review.png)
 
-These lines are from [the "O.P.P." song by "Naughty by Nature" rap group][wiki-opp] which was very popular in the early 1990s.  Contact with the developer. He's probably in his 50s at the moment (or was it she?). (Disturbed should be over by this moment. Enjoy [the clip:][youtube-opp])
+These lines are from [the "O.P.P." song by "Naughty by Nature" rap group][wiki-opp] which was very popular in the early 1990s. You have that subtle contact with the developer who wrote the code. He's probably in his late 40s or early 50s at the moment (or was it she?). ("Disturbed" is probably over by this moment. Enjoy [the old school rap bits][youtube-opp])
 
 ### Twitter's Algebird
 
-TODO
-It's functional, immutable, monadic and very slooooow!!
-It supports only `string` as the element type. Yeah, string is the universal data format, you can store everything there :grinning:
+"Abstract algebra for Scala. This code is targeted at building aggregation systems (via Scalding (Hadoop) or Apache Storm)." It's functional, immutable, monadic and **very slooooow!!**
+It supports only `String` as the element type. Yeah, string is the universal data format, you can store everything there :grinning:
 
-It uses Murmur hash 3. takes 128 bit and splits it to 4 32 bit hashes. It sets bit for each 32 bit number. Which is quite disputable solution.
+It uses loved by everyone MurmurHash3 which seems to be the bests general purpose hashing algorithm. It takes 128 bit and splits it to 4 32bit numbers. Then it sets one bit for each 32 bit number but not for the whole calculate hash. Which is quite controversial decision. I performed some rough tests and it appeared that Twitter's Bloom filter has 10% more false positive response than Google's or mine.
 
-Going deeper
-What's interesting Twitter's Bloom filter uses `EWAHCompressedBitmap` under the hood which is TODO  
-normal sparse bitsets.
-It's optimization for memory but its random access is slow (really slow). because
+Digging deeper, what's interesting is that Twitter's Bloom filter uses [`EWAHCompressedBitmap`][github-ewah] under the hood which is a compressed alternative to `BitSet`. It's an optimization for memory and very useful when you have **sparse data**. Say, you have bits starting at position 1 000 000, EWAH can optimize the set and won't allocate space for leading zeroes. Intersections, unions and differences between sets will be faster in this case too. But random access is slower. Even more, the whole goal of hashing is to have uniform distribution of hash numbers and as even as better. These two points eliminate all advantages of using compressed bitsets. I did few tests to check total allocated memory, as a result Twitter's Bloom filter allocated even more memory than the Bloom filter. Again, quite controversial solution in my opinion.
 
-uniform distribution
-as uniform as better.
+I wish I haven't checked allocations, I won't post the list of all of them because it's pretty long. Allocations for the 100 symbol string check are 1808 bytes. :sob:
 
-Here's what they say https://github.com/lemire/javaewah#when-should-you-use-compressed-bitmaps
-Again, quite disputable solution in my opinion.
-
-I performed rough tests to check total allocated memory.
-I put 100,000 random 1000 symbols string to both Bloom filters, Twitter's and mine. And it appeared that Algebird's Bloom filter allocated even more memory than the Bloom filter.
-
-I won't post the list of all allocations because it's pretty long. Allocations for 100 symbol string is 1808 bytes. Assuming that we don't allocate new `EWAHCompressedBitmap`s
-
-Persistent data structures
-going ahead, it's performance is 10 times worse for reads and ~100 times for writes than the Bloom filter implemented by me.
-The price is too huge to be functional
+Yes, it's functional, immutable, uses persistent data structures, monads, but that's not the price to pay for it. Getting ahead of myself, I will say it's performance is 10x times worse for reads and 100x for writes than the Bloom filter implemented by me.
 
 ### ScalaNLP's Breeze
 
@@ -243,4 +234,6 @@ Cuckoo Bloom filer any experience anybody?
   [github-breeze-hashcode]: https://github.com/scalanlp/breeze/blob/c12763387cb0741e6d588435d7da92b505f12843/math/src/main/scala/breeze/util/BloomFilter.scala#L36
   [github-guava]: https://github.com/google/guava
   [github-guava-bloomfilter]: https://github.com/google/guava/wiki/HashingExplained#bloomfilter
-  [twitter-pagels]: TODO
+  [twitter-pagels]: https://twitter.com/maxpagels
+  [wiki-rtb]: https://en.wikipedia.org/wiki/Real-time_bidding
+  [github-ewah]: https://github.com/lemire/javaewah
