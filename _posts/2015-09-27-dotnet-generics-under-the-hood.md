@@ -4,7 +4,8 @@ title: .NET Generics under the hood
 date: 2015-09-27
 modified: 2015-10-15
 excerpt: About .NET memory layout and how Generics affect it, how they work under the hood and a JITter bug for dessert.
-tags: [.NET, CLR]
+categories: [.NET]
+tags: [.NET, CLR, JIT, High-performance]
 comments: true
 share: true
 ---

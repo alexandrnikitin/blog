@@ -4,14 +4,14 @@ title: Access a null pointer without exception
 date: 2015-10-28
 modified: 2015-11-30 16:56:00
 excerpt: A story about a pattern, with interest, conviction, rejection and compassion in the end.
-tags: [C++, CLR, WTF, Anti-patterns]
+categories: [.NET]
+tags: [.NET, C++, CLR, WTF, Sarcasm, Anti-patterns]
 comments: true
 share: true
 ---
 
 _Note: Uneducated view of a .NET developer on the quintessence of computer science. :blush:_
 
-_Update: Because many of you didn't get the notion I put the "sarcasm" tag right here._
 
 ### Interest
 

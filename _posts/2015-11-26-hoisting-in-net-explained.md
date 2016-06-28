@@ -3,9 +3,9 @@ layout: single
 title: "Hoisting in .NET Explained"
 date: 2015-11-26T17:59:46+02:00
 modified:
-categories: [.NET, CLR, JIT, Optimizations]
+categories: [.NET]
 excerpt: "Hoisting is a compiler optimization that moves loop-invariant code out of the loop. The post reveals hoisting in .NET and explains what code will be optimized and why."
-tags: [.NET, CLR, JIT, Optimizations]
+tags: [.NET, CLR, JIT, High-performance]
 comments: true
 share: true
 ---

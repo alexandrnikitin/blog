@@ -3,9 +3,9 @@ layout: single
 title: "JIT optimization: static readonly to const"
 date: 2015-12-21T20:07:12+02:00
 modified:
-categories: [TIL, .NET, CLR, JIT, Optimizations]
+categories: [.NET]
 excerpt: "TIL: JIT can treat static readonly fields as constants"
-tags: [TIL, .NET, CLR, JIT, Optimizations]
+tags: [TIL, .NET, CLR, JIT, High-performance]
 comments: true
 share: true
 ---

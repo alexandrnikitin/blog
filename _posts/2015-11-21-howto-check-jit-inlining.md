@@ -3,9 +3,9 @@ layout: single
 title: "HOWTO: Check JIT Inlining"
 date: 2015-11-21T15:33:28+02:00
 modified: 2015-11-23T12:06:00+02:00
-categories: [.NET, CLR, JIT]
+categories: [.NET]
 excerpt: A short HOWTO check whether methods were inlined by JIT or not, and why not.
-tags: [.NET, CLR, JIT, Optimizations]
+tags: [.NET, CLR, JIT, High-performance]
 comments: true
 share: true
 ---

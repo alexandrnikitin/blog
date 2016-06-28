@@ -4,6 +4,7 @@ title: A single purpose of automated testing
 date: 2015-10-21
 modified: 2015-10-21
 excerpt: About different types of tests, their purpose and how you should test internals.
+categories: [Testing]
 tags: [Testing]
 comments: true
 share: true

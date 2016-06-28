@@ -3,9 +3,9 @@ layout: single
 title: "Hoisting in .NET Examples"
 date: 2015-12-16T17:32:28+02:00
 modified:
-categories: [.NET, CLR, JIT, Optimizations]
+categories: [.NET]
 excerpt: "We will take a closer look at the hoisting optimization by JIT. The post contains examples with their assembly listings."
-tags: [.NET, CLR, JIT, Optimizations]
+tags: [.NET, CLR, JIT, High-performance]
 comments: true
 share: true
 ---

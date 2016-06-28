@@ -5,7 +5,7 @@ date: 2015-11-12T16:54:23+02:00
 modified:
 categories: [Cross-Device]
 excerpt: "The beginning of Cross-Device journey: a product that will change the chaotic online advertising market (I hope it won't add more chaos there:)"
-tags: [Cross-Device]
+tags: 
 comments: true
 share: true
 ---
