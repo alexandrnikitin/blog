@@ -32,7 +32,7 @@ What's Bloom filter in a nutshell:
 - Solves the membership problem. It can answer one question: does an element belong to a set or not?
 - Probabilistic (lossy) data structure. It can answer that an element **probably belongs** to a set with some probability.
 
-I find the following post quite comprehensive ["What are Bloom filters, and why are they useful?"][sc5-bloom-filter] by [Max Pagels][twitter-pagels]. I couldn't do it better, take a look if you aren't familiar with Bloom filters.
+I find the following post quite comprehensive ["What are Bloom filters, and why are they useful?"][sc5-bloom-filter] by [@Max Pagels][twitter-pagels]. I couldn't do it better, take a look if you aren't familiar with Bloom filters.
 
 
 
@@ -96,10 +96,9 @@ Yes, it's functional, immutable, uses persistent data structures, monads, but th
 "Breeze is a generic, clean and powerful Scala numerical processing library... Breeze is a part of ScalaNLP project, a scientific computing platform for Scala."
 
 That sounds interesting, like a fresh wind. But...
-There's [a surprise lurked inside.][github-breeze-hashcode] It takes a hash of the object. "WAT?? Where's beloved Murmur?" you ask. It's used only for "finalizing" the object's hash. for what, distribution? seriously? If you don't know that little nuance you are done with large datasets.
+There's [a surprise lurked inside.][github-breeze-hashcode] It takes a hash of the object. _"WAT?? Where's beloved MurmurHash3?"_ you ask. It's used only for "finalizing" the object's hash. Yeah, it works with any type but if you don't know that little nuance you are done with large datasets.
 
-And again allocations - 544 bytes this time.
-Scala specific TODO
+And again, allocations - 544 bytes this time. Reviewing the code, you can encounter Scala specific issues like the following one:
 
 ```scala
 for {
@@ -111,58 +110,135 @@ for {
 }
 ```
 
-It compiles to:
+It looks pretty nice but it compiles to the following Java code which isn't that nice and allocates a lot: `intWrapper()`, `RichInt`, `Range.Inclusive`, `VectorBuilder` and `Vector`, boxing and unboxing and so forth:
 
+```java
+return (IndexedSeq)RichInt$.MODULE$.to$extension0(Predef$.MODULE$.intWrapper(0), numHashFunctions()).map(new Serializable(hash1, hash2) {
+
+    public final int apply(int i)
+    {
+        return apply$mcII$sp(i);
+    }
+
+    public int apply$mcII$sp(int i)
+    {
+        int h = hash1$1 + i * hash2$1;
+        int nextHash = h >= 0 ? h : ~h;
+        return nextHash % $outer.numBuckets();
+    }
+
+    public final volatile Object apply(Object v1)
+    {
+        return BoxesRunTime.boxToInteger(apply(BoxesRunTime.unboxToInt(v1)));
+    }
+
+    public static final long serialVersionUID = 0L;
+    private final BloomFilter $outer;
+    private final int hash1$1;
+    private final int hash2$1;
+
+    public
+    {
+        if(BloomFilter.this == null)
+        {
+            throw null;
+        } else
+        {
+            this.$outer = BloomFilter.this;
+            this.hash1$1 = hash1$1;
+            this.hash2$1 = hash2$1;
+            super();
+            return;
+        }
+    }
+}
+, IndexedSeq$.MODULE$.canBuildFrom());
 ```
-TODO
-```
+
+I think you got the point :wink: Let's take a look at the solution used by me.
+
+
 
 ### How does it work?
 
-Example:
+All that being said, I've reimplemented the Bloom filter data structure. You can find [the source code on github][github-source]. It's available via [the maven repository package][maven]:
 
-```scala
-TODO
+```
+libraryDependencies += "com.github.alexandrnikitin" %% "bloom-filter" % "0.3.1"
 ```
 
-Zero allocations - tricks with string
-
-Uses unsafe to create a huge chuck of memory.
-MurmurHash3 implemented in Scala + as a bonus: 128 bit version for unlimited uniqueness :smile:  
-Generic version of it
-Pluggable via implicit, type class pattern. TODO link to tpole
-Contravariant implicits -> Dotty
+Here's an example of its usage:
 
 ```scala
-implicit object CanGenerate128HashFromString extends CanGenerate128HashFrom[String] {
+import bloomfilter.mutable.BloomFilter
+
+val expectedElements = 1000
+val falsePositiveRate: Double = 0.1
+val bf = BloomFilter[String](expectedElements, falsePositiveRate)
+bf.add("some string")
+bf.mightContain("some string")
+bf.dispose()
+```
+
+
+#### Unsafe
+
+One important thing is that it uses `sun.misc.unsafe` package underneath. It uses it to allocate a chuck of memory for bits. So that you have **to dispose the Bloom filter** and the unmanaged memory it allocated. Also it uses usafe for some tricks to avoid allocations, e.g. to get access to a private array of chars.
+
+
+#### The type class pattern
+
+The implementation is extensible and you can plug-in any hashing algorithm for any type. It's implemented via **the type class pattern**. If you aren't familiar with it then you can read about the pattern in [@Daniel Westheide][twitter-kaffeecoder]'s ["The Neophyte's Guide to Scala" blog post][scala-typeclasses].
+
+Basically, all you need is to implement the `CanGenerateHashFrom[From]` trait which looks like this:
+
+```scala
+trait CanGenerateHashFrom[From] {
+  def generateHash(from: From): Long
+}
+```
+
+It's invariant, unfortunately. I wish I could make it contravariant but the Scala compiler cannot properly resolve contravariant implicits. But there's a hope, the feature is [in the Dotty's roadmap][dotty-roadmap] which is great!
+
+By default, it provides a generic implementation of the `MurmurHash3` hashing algorithm which is the best general purpose hashing algorithm. I've implemented the algorithm in Scala and it turned out to be faster than Guava's, Algebird's or Cassandra's one. _(I hope I didn't make any mistakes :grinning:)_
+Out of the box, the library provides implementations for `Long`, `String` and `Array[Byte]` types. As a bonus, there's the 128 bit version of it for unlimited uniqueness :smile:
+
+
+#### Zero-allocation
+
+This Bloom filter implementation doesn't allocate any object. The code is heavily optimized. Also there were few unsafe tricks implemented to achieve that. Here's the implementation for the `String` type:
+
+```scala
+implicit object CanGenerateHashFromString extends CanGenerateHashFrom[String] {
 
   import scala.concurrent.util.Unsafe.{instance => unsafe}
 
   private val valueOffset = unsafe.objectFieldOffset(classOf[String].getDeclaredField("value"))
   private val charBase = unsafe.arrayBaseOffset(classOf[Array[java.lang.Character]])
 
-  override def generateHash(from: String): (Long, Long) = {
+  override def generateHash(from: String): Long = {
     val value = unsafe.getObject(from, valueOffset).asInstanceOf[Array[Char]]
-    MurmurHash3Generic.murmurhash3_x64_128(value, charBase, from.length * 2, 0)
+    MurmurHash3Generic.murmurhash3_x64_64(value, charBase, from.length * 2, 0)
   }
 }
 ```
 
+It uses the `unsafe.objectFieldOffset()` method to take an offset of the "value" field which is an array of chars underneath an instance of the string class. Then it uses the `unsafe.getObject()` method to access the char array and passes it to the generic MurmurHash3.
 
-Small, No dependencies TODO
+Unfortunately, 128 bit version allocates one object. I hesitate between the `(Long, Long)` tuple and a `ThreadLocal` field. There's no difference in synthetic benchmarks. Any opinions here? I hope I will see [value types in JVM][java-valuetypes] during my devlife.
 
-128 bit version
+#### Limitations
 
-Limitations: TODO
-CanGenerateHashFrom is invariant
-You need to implement the hash function for you types by yourself.
-But I believe it's a reasonable price to pay for performance.
+As you might noticed already, there are some limitations. `CanGenerateHashFrom[From]` trait is invariant and it doesn't allow to fallback to the object's `hashCode()` method. You need to implement the hash function for your types by yourself. But I believe, it's a reasonable price to pay for performance.
 
-Can I use it from Java?
+#### Can I use it from Java?
 
-Yes you can. Unfortunately, it won't be as nice as in Scala but you got used to it, uh? No implicits and compiler won't help you. Integration with Scala is ugly in some parts but it works.
+Yes you can. Unfortunately, it won't be as nice as in Scala but you got used to it, uh? There are no implicits and compiler won't help you with that. Integration with Java is ugly in some parts but it works.
 
 ```java
+import bloomfilter.CanGenerateHashFrom;
+import bloomfilter.mutable.BloomFilter;
+
 long expectedElements = 10000000;
 double falsePositiveRate = 0.1;
 BloomFilter<byte[]> bf = BloomFilter.apply(
@@ -173,16 +249,15 @@ BloomFilter<byte[]> bf = BloomFilter.apply(
 byte[] element = new byte[100];
 bf.add(element);
 bf.mightContain(element);
+bf.dispose();
 ```
 
 
 ### Benchmarks
 
-We all love benchmarks, right? Numbers in vacuum, they are cool. And here they are:
+We all love benchmarks, right? Exciting numbers in a vacuum, they are so attractive. If you ever decide to write benchmarks then use [JMH][jmh] please. It's a Java harness tool created by [@Aleksey Shipilev][twitter-shipilev] for building, running, and analyzing nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM. There's [a neat sbt plugin on github][github-sbtjmh] by [@Konrad Malawski][twitter-ktosopl].
 
-Warning: synthetic benchmarks in vacuum. Usually, the difference is more significant in production systems. GC stress.
-
-Here's a benchmark for the `String` type:
+Here's a benchmark for the `String` type and results for other types are very similar to these:
 
 ```
 [info] Benchmark                                              (length)   Mode  Cnt          Score         Error  Units
@@ -193,36 +268,34 @@ Here's a benchmark for the `String` type:
 [info] alternatives.guava.StringItemBenchmark.guavaGet            1024  thrpt   20    5712237.339 ▒  115453.495  ops/s
 [info] alternatives.guava.StringItemBenchmark.guavaPut            1024  thrpt   20    5621712.282 ▒  307133.297  ops/s
 
+// My Bloom filter
 [info] bloomfilter.mutable.StringItemBenchmark.myGet              1024  thrpt   20   11483828.730 ▒  342980.166  ops/s
 [info] bloomfilter.mutable.StringItemBenchmark.myPut              1024  thrpt   20   11634399.272 ▒   45645.105  ops/s
 [info] bloomfilter.mutable._128bit.StringItemBenchmark.myGet      1024  thrpt   20   11119086.965 ▒   43696.519  ops/s
 [info] bloomfilter.mutable._128bit.StringItemBenchmark.myPut      1024  thrpt   20   11303765.075 ▒   52581.059  ops/s
 ```
 
+Basically, this implementation is 2x faster than Google's Guava and 10-80x than Twitter's Algebird. Other benchmarks you can find in [the "benchmarks' module on github][github-benchmarks]
 
-No difference in element size, within statistic error
-ThreadLocal - no difference in synthetic tests - Allocation is extremely cheap
-I hope JVM will get structs during my dev life.
+Warning: These are synthetic benchmarks in the isolated environment. Usually the difference in throughput and latency is bigger in production systems.
+
 
 
 ### Where to use?
 
 High performance and low latency systems.  
-Big Data and Machine Learning systems with a lot of data and unique elements.
+Big Data and Machine learning systems with a lot of data and unique elements.
 
 
-When not to use it:  
+#### When not to use it:  
 You are ok with your current solution. Most software don’t have to be fast.  
-You trust only proven and battle tested libraries from loud names like Google or Twitter.  
+You trust only proven and battle tested libraries from famous companies like Google or Twitter.  
 You want it to work out of the box.
 
 
 ### TODO
 
-TODO Header picture
-Feedback is welcome and appreciated
-Stable Bloom filter
-Cuckoo Bloom filer any experience anybody?
+Feedback is welcome and appreciated. The next step will be to implement [the Stable Bloom filter][stable] data structure because there's no good implementation. I plan to do some experiments with [the Cuckoo filer data structure][cuckoo]. Any experience so far?
 
   [github-source]: https://github.com/alexandrnikitin/bloom-filter-scala
   [youtube-bored]: https://www.youtube.com/watch?v=-WdYo3WlETY
@@ -237,3 +310,15 @@ Cuckoo Bloom filer any experience anybody?
   [twitter-pagels]: https://twitter.com/maxpagels
   [wiki-rtb]: https://en.wikipedia.org/wiki/Real-time_bidding
   [github-ewah]: https://github.com/lemire/javaewah
+  [scala-typeclasses]: http://danielwestheide.com/blog/2013/02/06/the-neophytes-guide-to-scala-part-12-type-classes.html
+  [twitter-kaffeecoder]: https://twitter.com/kaffeecoder
+  [dotty-roadmap]: http://dotty.epfl.ch/#so-features
+  [java-valuetypes]: http://mail.openjdk.java.net/pipermail/valhalla-dev/2016-June/001981.html
+  [maven]: https://mvnrepository.com/artifact/com.github.alexandrnikitin/bloom-filter_2.11
+  [jmh]: http://openjdk.java.net/projects/code-tools/jmh/
+  [github-sbtjmh]: https://github.com/ktoso/sbt-jmh
+  [twitter-ktosopl]: https://twitter.com/ktosopl
+  [github-benchmarks]: https://github.com/alexandrnikitin/bloom-filter-scala/tree/0e9d0ba103c314ae2c071a107ff7fbc48af4c904/benchmarks/src/main/scala
+  [twitter-shipilev]: https://twitter.com/shipilev
+  [cuckoo]: https://www.cs.cmu.edu/~dga/papers/cuckoo-conext2014.pdf
+  [stable]: https://webdocs.cs.ualberta.ca/~drafiei/papers/DupDet06Sigmod.pdf
