@@ -1,6 +1,7 @@
 ---
 layout: single
 title: "Bloom filter in Scala, the fastest for JVM"
+date: 2016-06-28
 categories: [Scala, Data structures]
 excerpt: The fastest implementation of Bloom filter for Scala
 tags: [High-performance]
@@ -12,10 +13,9 @@ share: true
 
 ### TL;DR
 
-Implementation of Bloom filter in Scala.  
-[The source code on github][github-source]  
-The fastest implementation for JVM. _[(Take me straight to the benchmarks)](#benchmarks)_  
-Zero-allocation and highly optimized code  
+My implementation of Bloom filter in Scala. [The source code on github][github-source]  
+The **fastest** implementation for JVM. _[(Take me straight to the benchmarks)](#benchmarks)_  
+Zero-allocation and highly optimized code.  
 No memory limits, therefore no limits to the number of elements and false positive rate.  
 Extendable: plug-in any hash algorithm or element type to hash.  
 Yes, it uses `sun.misc.unsafe` :blush:
@@ -32,7 +32,7 @@ What's Bloom filter in a nutshell:
 - Solves the membership problem. It can answer one question: does an element belong to a set or not?
 - Probabilistic (lossy) data structure. It can answer that an element **probably belongs** to a set with some probability.
 
-I find the following post quite comprehensive ["What are Bloom filters, and why are they useful?"][sc5-bloom-filter] by [@Max Pagels][twitter-pagels]. I couldn't do it better, take a look if you aren't familiar with Bloom filters.
+I find the following post quite comprehensive - ["What are Bloom filters, and why are they useful?"][sc5-bloom-filter] by [@Max Pagels][twitter-pagels]. I couldn't do it better, take a look if you aren't familiar with Bloom filters.
 
 
 
@@ -40,9 +40,9 @@ I find the following post quite comprehensive ["What are Bloom filters, and why 
 
 ~~Because available ones suck!~~ :rage: They don't suit your needs because of performance or memory limitations. Or you just know that you can do it better. Frankly, neither is true. The reason is that you just get bored sometimes. [(_theme song_)][youtube-bored]
 
-The major reason is performance. Working on high-performance and low latency systems, you don't want to see that you are slow because of some external library and it allocates more than your code does. You want to focus on your business logic and have the dependencies you rely on to be as efficient as possible.
+The major reason is **performance**. Working on high-performance and low latency systems, you don't want to see that you are slow because of an external library and it allocates more than your code does. You want to focus on your business logic and have the dependencies you rely on to be as efficient as possible.
 
-Another reason is memory limitations. All of them have size limitation caused by JVM array size limit. In JVM, arrays use integers for indexes, therefore the max size is limited by the max size of integers which is 2 147 483 647. If we create an array of longs to store bits then we can store 64 bit * 2 147 483 647 = 137 438 953 408 bits. This takes ~15 GB of memory. You can put ~10 000 000 000 elements with 0.1% probability into this Bloom filter. This is more than enough for most software. But when you work with Big Data such as web URLs, banner impressions, [Real-time bidding][wiki-rtb] bid requests, or streams of events and Machine learning, then 10 billion elements is just the beginning. Sure, you can have workarounds for that: multiple Bloom filters, distribute them across multiple nodes, design your software to fit this limitation, but those workarounds aren't always efficient, can be pricey or don't fit into your architecture.
+Another reason is memory limitations. All of them have size limitation caused by JVM array size limit. In JVM, arrays use integers for indexes, therefore the max size is limited by the max size of integers which is 2 147 483 647. If we create an array of longs to store bits then we can store 64 bit * 2 147 483 647 = 137 438 953 408 bits. This takes ~15 GB of memory. You can put ~10 000 000 000 elements with 0.1% probability into this Bloom filter. This is more than enough for most software. But when you work with Big Data such as web URLs, banner impressions, [Real-time bidding][wiki-rtb] requests, or any stream of events and Machine learning, then 10 billion elements is just the beginning. Sure, you can have workarounds for that: multiple Bloom filters, distribute them across multiple nodes, design your software to fit this limitation, but those workarounds aren't always efficient, can be pricey or don't fit into your architecture.
 
 Let's take a look at some of the available solutions.
 
@@ -70,9 +70,9 @@ I just allocated the object 36db757cdd5ae408ef61dca2406d0d35 of type com/google/
 ```
 
 This is 1016 bytes!! Just think about, we calculate a hash number of a short string and check whether the relevant bits are set, and it allocates ~1Kb of data. This is A LOT!! You could argue that allocations are cheap.
-Yes, they are, and you, most probably, won't see an impact in isolated micro-benchmarks, but in production environment it gets much worse: it can stress the GC, lead to slow allocation paths, trigger the GC, etc.
+Yes, they are, and you, most probably, won't see an impact in isolated micro-benchmarks, but in production environment it gets much worse: it can stress the GC, lead to slow allocation paths, trigger the GC, lead to higher latency etc.
 
-Anyway, it was fun to review the code. Sometimes you can find some nice Easter eggs there. For example this one:
+Anyway, it was fun to review the code. Sometimes you can find some nice Easter eggs there. For example [this one here][github-guava-egg]:
 
 ![The song]({{ site.url }}{{ site.baseurl }}/images/bloom-filter-for-scala/guava-review.png)
 
@@ -83,22 +83,22 @@ These lines are from [the "O.P.P." song by "Naughty by Nature" rap group][wiki-o
 "Abstract algebra for Scala. This code is targeted at building aggregation systems (via Scalding (Hadoop) or Apache Storm)." It's functional, immutable, monadic and **very slooooow!!**
 It supports only `String` as the element type. Yeah, string is the universal data format, you can store everything there :grinning:
 
-It uses loved by everyone MurmurHash3 which seems to be the bests general purpose hashing algorithm. It takes 128 bit and splits it to 4 32bit numbers. Then it sets one bit for each 32 bit number but not for the whole calculate hash. Which is quite controversial decision. I performed some rough tests and it appeared that Twitter's Bloom filter has 10% more false positive response than Google's or mine.
+It uses loved by everyone MurmurHash3 which seems to be the best general purpose hashing algorithm. It takes 128-bit hash code and splits it to four 32-bit numbers. Then it sets one bit for each 32-bit number but not for the whole calculated hash. Which is quite **controversial decision**. I performed some rough tests and it turned out that Twitter's Bloom filter has 10% more false positive response than mine.
 
-Digging deeper, what's interesting is that Twitter's Bloom filter uses [`EWAHCompressedBitmap`][github-ewah] under the hood which is a compressed alternative to `BitSet`. It's an optimization for memory and very useful when you have **sparse data**. Say, you have bits starting at position 1 000 000, EWAH can optimize the set and won't allocate space for leading zeroes. Intersections, unions and differences between sets will be faster in this case too. But random access is slower. Even more, the whole goal of hashing is to have uniform distribution of hash numbers and as even as better. These two points eliminate all advantages of using compressed bitsets. I did few tests to check total allocated memory, as a result Twitter's Bloom filter allocated even more memory than the Bloom filter. Again, quite controversial solution in my opinion.
+Digging deeper, what's interesting is that Twitter's Bloom filter uses [`EWAHCompressedBitmap`][github-ewah] under the hood which is a compressed alternative to `BitSet`. It's an optimization for memory and very useful when you have **sparse data**. Say, you have bits starting at position 1 000 000, EWAH can optimize the set and won't allocate space for leading zeroes. Intersections, unions and differences between sets will be faster in this case too. But random access is slower. Even more, the whole goal of hashing is to have uniform distribution of hash numbers and as even as better. These two points eliminate all advantages of using compressed bitsets. I did few tests to check total allocated memory, as a result Twitter's Bloom filter allocated even more memory than my Bloom filter. Again, quite controversial solution in my opinion.
 
-I wish I haven't checked allocations, I won't post the list of all of them because it's pretty long. Allocations for the 100 symbol string check are 1808 bytes. :sob:
+I wish I haven't checked allocations, I won't post the list of all of them because it's pretty long. Allocations for the 100 symbol string check are **1808 bytes.** :sob:
 
-Yes, it's functional, immutable, uses persistent data structures, monads, but that's not the price to pay for it. Getting ahead of myself, I will say it's performance is 10x times worse for reads and 100x for writes than the Bloom filter implemented by me.
+Yes, it's functional, immutable, uses persistent data structures, monads, but that's not the price to pay for it. Getting ahead of myself, I will say it's performance is 10 times worse for reads and 100x for writes than the Bloom filter implemented by me.
 
 ### ScalaNLP's Breeze
 
 "Breeze is a generic, clean and powerful Scala numerical processing library... Breeze is a part of ScalaNLP project, a scientific computing platform for Scala."
 
 That sounds interesting, like a fresh wind. But...
-There's [a surprise lurked inside.][github-breeze-hashcode] It takes a hash of the object. _"WAT?? Where's beloved MurmurHash3?"_ you ask. It's used only for "finalizing" the object's hash. Yeah, it works with any type but if you don't know that little nuance you are done with large datasets.
+There's [a surprise lurked inside.][github-breeze-hashcode] It takes a **hash code of the object**. _"WAT?? Where's beloved MurmurHash3?"_ you ask. It's used only for "finalizing" the object's hash. Yeah, it works with any type out-of-the-box but if you don't know that little nuance you are done with large datasets.
 
-And again, allocations - 544 bytes this time. Reviewing the code, you can encounter Scala specific issues like the following one:
+And again, allocations - 544 bytes this time. Reviewing the code, you can encounter Scala-specific issues like the following one:
 
 ```scala
 for {
@@ -110,7 +110,7 @@ for {
 }
 ```
 
-It looks pretty nice but it compiles to the following Java code which isn't that nice and allocates a lot: `intWrapper()`, `RichInt`, `Range.Inclusive`, `VectorBuilder` and `Vector`, boxing and unboxing and so forth:
+It looks pretty neat: for comprehension, lazy evaluation, nice DSL. But it compiles to the following Java code which isn't that nice and allocates a lot: `intWrapper()`, `RichInt`, `Range.Inclusive`, `VectorBuilder` and `Vector`, boxing and unboxing and so forth:
 
 ```java
 return (IndexedSeq)RichInt$.MODULE$.to$extension0(Predef$.MODULE$.intWrapper(0), numHashFunctions()).map(new Serializable(hash1, hash2) {
@@ -155,7 +155,7 @@ return (IndexedSeq)RichInt$.MODULE$.to$extension0(Predef$.MODULE$.intWrapper(0),
 , IndexedSeq$.MODULE$.canBuildFrom());
 ```
 
-I think you got the point :wink: Let's take a look at the solution used by me.
+Pretty scary! I think you got the point :wink: Let's take a look at the solution used by me.
 
 
 
@@ -173,7 +173,7 @@ Here's an example of its usage:
 import bloomfilter.mutable.BloomFilter
 
 val expectedElements = 1000
-val falsePositiveRate: Double = 0.1
+val falsePositiveRate = 0.1
 val bf = BloomFilter[String](expectedElements, falsePositiveRate)
 bf.add("some string")
 bf.mightContain("some string")
@@ -183,7 +183,7 @@ bf.dispose()
 
 #### Unsafe
 
-One important thing is that it uses `sun.misc.unsafe` package underneath. It uses it to allocate a chuck of memory for bits. So that you have **to dispose the Bloom filter** and the unmanaged memory it allocated. Also it uses usafe for some tricks to avoid allocations, e.g. to get access to a private array of chars.
+One important thing is that it uses `sun.misc.unsafe` package underneath. It uses it to allocate a chuck of memory for bits. So that you have **to dispose the Bloom filter instance** and the unmanaged memory it allocated. Also it uses usafe for some tricks to avoid allocations, e.g. to get access to a private array of chars.
 
 
 #### The type class pattern
@@ -201,12 +201,12 @@ trait CanGenerateHashFrom[From] {
 It's invariant, unfortunately. I wish I could make it contravariant but the Scala compiler cannot properly resolve contravariant implicits. But there's a hope, the feature is [in the Dotty's roadmap][dotty-roadmap] which is great!
 
 By default, it provides a generic implementation of the `MurmurHash3` hashing algorithm which is the best general purpose hashing algorithm. I've implemented the algorithm in Scala and it turned out to be faster than Guava's, Algebird's or Cassandra's one. _(I hope I didn't make any mistakes :grinning:)_
-Out of the box, the library provides implementations for `Long`, `String` and `Array[Byte]` types. As a bonus, there's the 128 bit version of it for unlimited uniqueness :smile:
+Out of the box, the library provides implementations for `Long`, `String` and `Array[Byte]` types. As a bonus, there's the 128-bit version of it for unlimited uniqueness :smile:
 
 
 #### Zero-allocation
 
-This Bloom filter implementation doesn't allocate any object. The code is heavily optimized. Also there were few unsafe tricks implemented to achieve that. Here's the implementation for the `String` type:
+This Bloom filter implementation doesn't allocate any object. The code is heavily optimized. I plan to write a separate post about the optimizations. Stay tuned :bowtie: Also there's few unsafe tricks implemented to achieve that. Here's the implementation of the `CanGenerateHashFrom` trait for the `String` type:
 
 ```scala
 implicit object CanGenerateHashFromString extends CanGenerateHashFrom[String] {
@@ -225,15 +225,17 @@ implicit object CanGenerateHashFromString extends CanGenerateHashFrom[String] {
 
 It uses the `unsafe.objectFieldOffset()` method to take an offset of the "value" field which is an array of chars underneath an instance of the string class. Then it uses the `unsafe.getObject()` method to access the char array and passes it to the generic MurmurHash3.
 
-Unfortunately, 128 bit version allocates one object. I hesitate between the `(Long, Long)` tuple and a `ThreadLocal` field. There's no difference in synthetic benchmarks. Any opinions here? I hope I will see [value types in JVM][java-valuetypes] during my devlife.
+Unfortunately, 128-bit version allocates one object. I hesitate between the `(Long, Long)` tuple and the `ThreadLocal` field. There's no difference in synthetic benchmarks. Any opinions here? I hope I will see [value types in JVM][java-valuetypes] during my devlife. There's a great attempt to get that done by [@Gil Tene][twitter-giltene] called [ObjectLayout][github-objectlayout].
 
 #### Limitations
 
 As you might noticed already, there are some limitations. `CanGenerateHashFrom[From]` trait is invariant and it doesn't allow to fallback to the object's `hashCode()` method. You need to implement the hash function for your types by yourself. But I believe, it's a reasonable price to pay for performance.
 
+I won't work on all JVMs because of "unsafe" package. And there's no fallback implemented.
+
 #### Can I use it from Java?
 
-Yes you can. Unfortunately, it won't be as nice as in Scala but you got used to it, uh? There are no implicits and compiler won't help you with that. Integration with Java is ugly in some parts but it works.
+Yes you can. Unfortunately, it won't be as nice as in Scala but you got used to it, uh? There are no implicits and the Java compiler won't help you with them. Integration with Java is ugly in some parts but it works.
 
 ```java
 import bloomfilter.CanGenerateHashFrom;
@@ -255,7 +257,7 @@ bf.dispose();
 
 ### Benchmarks
 
-We all love benchmarks, right? Exciting numbers in a vacuum, they are so attractive. If you ever decide to write benchmarks then use [JMH][jmh] please. It's a Java harness tool created by [@Aleksey Shipilev][twitter-shipilev] for building, running, and analyzing nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM. There's [a neat sbt plugin on github][github-sbtjmh] by [@Konrad Malawski][twitter-ktosopl].
+We all love benchmarks, right? Exciting numbers in a vacuum, they are so attractive. If you ever decide to write benchmarks then use [JMH][jmh] please. It's a Java library created by [@Aleksey Shipilev][twitter-shipilev] "for building, running, and analyzing nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM." There's [a neat sbt plugin on github][github-sbtjmh] by [@Konrad Malawski][twitter-ktosopl].
 
 Here's a benchmark for the `String` type and results for other types are very similar to these:
 
@@ -277,25 +279,27 @@ Here's a benchmark for the `String` type and results for other types are very si
 
 Basically, this implementation is 2x faster than Google's Guava and 10-80x than Twitter's Algebird. Other benchmarks you can find in [the "benchmarks' module on github][github-benchmarks]
 
-Warning: These are synthetic benchmarks in the isolated environment. Usually the difference in throughput and latency is bigger in production systems.
+Warning: These are synthetic benchmarks in isolated environment. Usually the difference in throughput and latency is bigger in production system because it will stress the GC, lead to slow allocation paths and higher latencies, trigger the GC, etc.
 
 
 
 ### Where to use?
 
 High performance and low latency systems.  
-Big Data and Machine learning systems with a lot of data and unique elements.
+Big Data and Machine learning systems with a lot of data and billions of unique elements.
 
 
 #### When not to use it:  
 You are ok with your current solution. Most software don’t have to be fast.  
-You trust only proven and battle tested libraries from famous companies like Google or Twitter.  
-You want it to work out of the box.
+You trust only proven and battle-tested libraries from famous companies like Google or Twitter.  
+You want it to work out-of-the-box.
 
 
-### TODO
+### What's next?
 
 Feedback is welcome and appreciated. The next step will be to implement [the Stable Bloom filter][stable] data structure because there's no good implementation. I plan to do some experiments with [the Cuckoo filer data structure][cuckoo]. Any experience so far?
+
+Thank you!
 
   [github-source]: https://github.com/alexandrnikitin/bloom-filter-scala
   [youtube-bored]: https://www.youtube.com/watch?v=-WdYo3WlETY
@@ -319,6 +323,9 @@ Feedback is welcome and appreciated. The next step will be to implement [the Sta
   [github-sbtjmh]: https://github.com/ktoso/sbt-jmh
   [twitter-ktosopl]: https://twitter.com/ktosopl
   [github-benchmarks]: https://github.com/alexandrnikitin/bloom-filter-scala/tree/0e9d0ba103c314ae2c071a107ff7fbc48af4c904/benchmarks/src/main/scala
-  [twitter-shipilev]: https://twitter.com/shipilev
+  [twitter-shipilev]: https://www.youtube.com/watch?v=dQw4w9WgXcQ
   [cuckoo]: https://www.cs.cmu.edu/~dga/papers/cuckoo-conext2014.pdf
   [stable]: https://webdocs.cs.ualberta.ca/~drafiei/papers/DupDet06Sigmod.pdf
+  [github-guava-egg]: https://github.com/google/guava/blob/165ef0d34adffb8a5ac84b859e9d58cd68412193/guava/src/com/google/common/hash/BloomFilter.java#L179
+  [twitter-giltene]: https://twitter.com/giltene
+  [github-objectlayout]: http://objectlayout.github.io/ObjectLayout/
