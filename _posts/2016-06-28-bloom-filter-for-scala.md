@@ -1,9 +1,9 @@
 ---
 layout: single
-title: "Bloom filter in Scala, the fastest for JVM"
+title: "Bloom filter for Scala, the fastest for JVM"
 date: 2016-06-28
 categories: [Scala, Data structures]
-excerpt: The fastest implementation of Bloom filter for Scala
+excerpt: The fastest implementation of Bloom filter for Scala and JVM
 tags: [High-performance]
 comments: true
 share: true

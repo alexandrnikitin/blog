@@ -4,6 +4,7 @@ excerpt: "You can run Java inside a Windows container which is hosted on a Windo
 categories: [Docker]
 tags: [Just For Fun, Java, Docker, Windows]
 layout: single
+date: 2016-06-12
 comments: true
 share: true
 ---
