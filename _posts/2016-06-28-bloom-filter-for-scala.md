@@ -230,7 +230,7 @@ Unfortunately, 128-bit version allocates one object. I hesitate between the `(Lo
 
 As you might noticed already, there are some limitations. `CanGenerateHashFrom[From]` trait is invariant and it doesn't allow to fallback to the object's `hashCode()` method. You need to implement the hash function for your types by yourself. But I believe, it's a reasonable price to pay for performance.
 
-I won't work on all JVMs because of "unsafe" package. And there's no fallback implemented.
+It won't work on all JVMs because of "unsafe" package. And there's no fallback implemented.
 
 #### Can I use it from Java?
 
