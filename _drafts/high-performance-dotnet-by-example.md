@@ -1,99 +1,174 @@
 ---
 layout: single
-title: "High performance .NET by example: Filter bot traffic"
-date:
+title: "High-performance .NET by example: Filter bot traffic"
+date: 2017-01-27
 modified:
 categories: [.NET, Algorithms]
-excerpt:
+excerpt: TODO
 tags: [.NET, High-performance]
 comments: true
 share: true
 ---
 
-This is a story about one real-world performance optimization.
-I often hear blaming languages and platforms for being slow, not suitable for
+### TL;DR
 
-What this story isn't about:
-* .NET vs JVM vs C++ vs ...
-* .NET is awesome!!!
-* Business logic
-* GC
+This post is based on a real-world feature that is used under high-load scenarios. The post contains a series of various performance optimization steps, from BCL API usage to advanced data structures, from bit twiddling hacks to SIMD instructions. It also covers tools that used to analyze code.
 
-What it is about:
+### Intro:
 
-* Pure performance
-* A story about a real-world performance optimization
+I work for an advertising technology company and we have a feature that identifies and filters out unwanted bot traffic. It’s backed by the Aho–Corasick algorithm, a string searching algorithm that matches all strings simultaneously. In this post we will discover the algorithm itself and its original implementation.
+TODO
+We will learn how to write micro benchmarks, profile code and read IL and assembly code. Step by step we will improve performance by 30 times using different techniques: re-implementing .NET BCL data structures, fixing CPU cache misses, reduce main memory reads by putting values in CPU registers? by force, avoid calls to Method table, evaluate .NET Core (try SIMD?)
 
 
+This is a story about one real-world performance optimization that I implemented some time ago. I often hear people blaming languages and platforms for being slow, not suitable for high-performance requirements.
 The intentions is to show that in 99%
-I work at advertising technology company and we have a feature that identifies and filters out unwanted bot traffic. It’s backed by the Aho–Corasick algorithm, a string searching algorithm that matches all strings simultaneously. In this post we will discover the algorithm and its original implementation. We will learn how to write micro benchmarks, profile code and read IL and assembly code. Step by step we will improve performance by 30 times using different techniques: re-implement .NET BCL data structures, fix CPU cache misses, reduce main memory reads by putting values in CPU registers by force, avoid calls to Method table, evaluate .NET Core (try SIMD?)
+
+This story isn't about .NET vs JVM vs C++ vs ... I won't praise .NET as being awesome. It's not about any kind of business logic optimizations. It's definitely not about GC tunning, blaming.
+
+This story is about pure performance optimizations based on a real-world case. Step by step we'll improve performance of one production feature.
 
 
-Tools used:
+Domain
 
-- Laptop (or a peer with a laptop) with dev environment
-- Aho-Corasick algorithm: study and try to implement it by yourself
-- ILSpy
-- WinDBG
-- PerfView
-- Intel VTune Amplifier
+Algorithm
 
+Fundamentals of performance:
+- First efficiency then performance
+- Measure, measure, measure
 
+Tools and libraries:
+- BenchmarkDotNet - for benchmarks
+- ILSpy - c# compiler
+- WinDBG - .NET under the hood
+- PerfView - swiss army knife
+- Intel VTune Amplifier - heavy artillery for low level profiling
+TODO PCM Tools
 
-
-0. Intro
-  * What it's about and what isn't
-  * Domain field
-0. About the Aho-Corasick algorithm
-  * The algorithm explained
-  * Implement the algorithm by ourselves
-  * The current implementation
-0. Harness
-  * How to write micro-benchmarks
-  * How to profile code
-  * How to get and read assembly code
-0. Optimizations:
-  * Re-implement BCL
-  * Open address hashset
-  * Branchless code
-  * Further micro optimizations
-0. Experiments
-  * Static
-  * .NET Core
-  * SIMD?
-
+Optimizations
+- TODO
 
 ### Domain:
 
-All websites receive bot traffic. A study shows that bots drive 16% of Internet traffic in the US, in Singapore this number reaches 56%.
+All websites receive bot traffic :) Not a surprise, right? There were quite a few studies from all sides of the business. Commercials tend to reduce the numbers. Academics in their turn increase numbers and spread panic. I think truth is somewhere in the middle.
+
+Here's just a few to name:
+- one from Incapsula shows that websites receive 50% of bot traffic in average. https://www.incapsula.com/blog/bot-traffic-report-2016.html
+
+A study shows that bots drive 16% of Internet traffic in the US, in Singapore this number reaches 56%.
 Source http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic
 
-Not all bots are bad, and some of them are vital for the Internet.
-White bots (good) search engines (Google, Bing), robot.txt
-Grey bots (neutral) - don't bring clients directly, generate load. Frameworks, utilities,
-Black bots (bad) - fraud, intentionaly fake impression, clicks, etc.
+
+But, surprisingly, not all bots are bad, and some of them are even vital for the Internet. The classification could look like:
+- White bots (good) - search engines (Google, Bing), TODO robot.txt TODO: Robots <META> tag, clearly identify themselves.
+- Grey bots (neutral) - similar to white bots, they don't bring money directly, but generate load. Feed fetchers, crawlers and scrappers.
+- Black bots (bad) - fraud, intentionally fake impression, clicks, etc. Imitate user behavior, We won't cover it because it a separate huge topic with sophisticated analysis and ML algorithms.
+
+Why?
+Clients don't want to pay for bot traffic
+
+There are few ways to identify the bot traffic. One of the ways that became a standard in the industry is to use
+How to identify them?
+
+The Interactive Advertising Bureau (IAB)
+http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/
+"is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry."
+
+"It is comprised of more than 650 leading media and technology companies that are responsible for selling, delivering, and optimizing digital advertising or marketing campaigns."
+
+User Agent:
 
 My user agent: "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
 Google Web search: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 Google UAs: https://support.google.com/webmasters/answer/1061943?hl=en
 
 
-IAB - Interactive Advertising Bureau
-http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/
-
 https://gitz.adform.com/marius.kazlauskas/serving/blob/master/Adform.AdServing.Lib/Resources/IAB/exclude.txt
 
-DSP, AdServing, etc
+The feature is used in few high-load applications like DSP and AdServing.
 
 
-### Lesson X: First efficiency then performance
+TODO
+https://www.axios.com/most-internet-traffic-doesnt-come-from-humans-2233708130.html
+
+Yeah, it's all about banners.
+
+![About code purpose!]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Strip-Vendeur-de-bannières-650-finalenglish.jpg)
+
+### Measure, measure, measure
+
+"If you can not measure it, you can not improve it." Lord Kelvin
+Right measurement is hard!
+
+Macro-benchmarks and metrics help you understand how your code works in production and on real data and real impact of your changes. I won't cover metrics here as they too application specific.
+
+Microbenchmarks - fast feedback, confidence. unit tests
+Microbenchmarking is hard!
+
+[DOs & DON'Ts from Microsoft:](https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/performance-guidelines.md#creating-a-microbenchmark)
+
+- **DO** use a microbenchmark when you have an isolated piece of code whose performance you want to analyze.
+- **DO NOT** use a microbenchmark for code that has non-deterministic dependences (e.g. network calls, file I/O etc.)
+- **DO** run all performance testing against retail optimized builds.
+- **DO** run many iterations of the code in question to filter out noise.
+- **DO** minimize the effects of other applications on the performance of the microbenchmark by closing as many unnecessary applications as possible.
+
+You development pipeline looks like the following:
+A feature -> C#
+C# + Compiler -> IL assembly
+IL assembly + BCL + 3rdParty libs -> Application
+Application + CLR -> ASM
+ASM + CPU -> Result
+
+Infrastructure:
+OS: Windows, Linux, OS X
+Compilers: Legacy, Roslyn
+CLR: CLR2, CLR4, CoreCLR, Mono
+GC: Microsoft GC (different modes), Boehm, Sgen
+JIT: Legacy x86 & x64, RyuJIT
+Compilation: JIT, NGen, MPGO, .NET Native
+
+
+### First efficiency then performance
+
+This is the most crucial aspect in all performance stories.
+
 Efficiency vs performance
-Efficiency: How much work you need to do?
-Performance: How fast you do the work?
+Efficiency means How much work you need to do?
+Performance means How fast you do the work (that you need to do)?
+
+The main goal is to reduce the amount of work to do. And only then do it fast.
+
 Commute: sport car vs bicycle
+Analogy
+Imagine I live in 10 kilometers from my office. I commute on a bicycle There's a direct I pedal at 20 km/h at average. I think I'm quite efficient because I choose the shortest route without many obstacles (traffic jams or lights). Am I fast? I doubt.
+
+I have a sport car which is quite fast. sends me through the nearest city and the route takes 100 kilometers. Am I efficient doing this? Of course no. But I'm god damn fast, the fastest on the road.
+
+pic
+
 
 
 #### Algorithm:
+
+Following the main principle we think about efficiency first.
+
+Multiple string matching is an important problem in many application areas
+of computer science. For example, in computational biology, with the availability
+of large amounts of DNA data, matching of nucleotide sequences has become an
+important application and there is an increasing demand for fast computer methods
+for analysis and data retrieval. Similarly, in metagenomics [22], we have a set
+of patterns which are the extracted DNA fragments of some species, and would
+like to check if they exist in another living organism. Another important usage
+of multiple pattern matching algorithms appears in network intrusion detection
+systems as well as in anti-virus software, where such systems should check an
+increasing number of malicious patterns on disks or high–speed network traffic.
+The common properties of systems demanding for multi–pattern matching is
+ever increasing size of both the sets and pattern lengths. Hence, searching of
+multiple long strings over a sequence is becoming a more significant problem.
+
+
+
 https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm
 a string searching algorithm
 accepts a finite set of strings we want to find
@@ -114,37 +189,10 @@ TODO: https://www.quora.com/What-is-the-most-intuitive-explanation-of-the-Aho-Co
 the only .NET implementation: https://www.informit.com/guides/content.aspx?g=dotnet&seqNum=769
 
 
-### Lesson X: Measure, measure, measure
-Microbenchmarks - fast feedback
-  is hard.
 
-is hard!
 
-DOs & DON'Ts from Microsoft:
 
-- **DO** use a microbenchmark when you have an isolated piece of code whose performance you want to analyze.
-- **DO NOT** use a microbenchmark for code that has non-deterministic dependences (e.g. network calls, file I/O etc.)
-- **DO** run all performance testing against retail optimized builds.
-- **DO** run many iterations of the code in question to filter out noise.
-- **DO** minimize the effects of other applications on the performance of the microbenchmark by closing as many unnecessary applications as possible.
-
-https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/performance-guidelines.md#creating-a-microbenchmark
-
-Pipeline:
-A task -> C#
-C# + Compiler -> IL
-IL + BCL + 3rdParty -> App
-App + CLR -> ASM
-ASM + CPU -> Result
-
-Infrastructure:
-OS: Windows, Linux, OS X
-Compilers: Legacy, Roslyn
-CLR: CLR2, CLR4, CoreCLR, Mono
-GC: MS (modes), Boehm, Sgen
-JIT: Legacy x86 & x64, RyuJIT
-Compilation: JIT, NGen, MPGO, .NET Native
-
+### Tools:
 
 ##### BenchmarkDotNet:
 
@@ -194,10 +242,16 @@ CMD args: https://github.com/lowleveldesign/debug-recipes/blob/master/perfview/p
 
 ##### Intel VTune Amplifier
 heavy metal of profilers
-TODO
 $$$
+low overhead
+Languages: C, C++, C#, Fortran, Java, ASM and more.
+
+use production data?
 
 AMD Code XL
+
+Shows how CPU executes your code.
+Driver hundreds of hardware! counters and metrics
 
 
 #### IL:
@@ -221,6 +275,7 @@ SOS Sun of Strike : https://msdn.microsoft.com/en-us/library/bb190764(v=vs.110).
 SOSex: http://www.stevestechspot.com/default.aspx
 HOWTO: Debugging .NET with WinDbg https://docs.google.com/document/d/1yMQ8NAQZEBtsfVp7AsFLSA_MkIKlYNuSowG72_nU0ek
 WinDbgCs https://github.com/southpolenator/WinDbgCs
+
 CLRMD https://github.com/Microsoft/clrmd/blob/master/Documentation/MachineCode.md
 
 Task: Sources
@@ -245,7 +300,6 @@ Profilers are lying hobbits!!!
 BenchmarkDotNet MemoryDiagnoser
 
 Side:
-GC modes: Server vs Workstation (BenchmarkDotNet?) CPU groups?
 Try Server GC: less GCs
 
 Task: find reason for the allocation using Perfview & ILSpy
@@ -255,6 +309,8 @@ Task: find reason for the allocation using Perfview & ILSpy
 #### Lesson 3: Know basic data structures
 BCL is too generic and isn't suitable for high performance
 
+indirections
+vcalls
 
 #### Lesson 4: Know overheads
 
@@ -277,6 +333,8 @@ jle 0x7ffcbc4238a1
 
 
 #### Lesson 4: Know how CPU works
+
+Obligated picture to show how complex CPUs are
 
 CPU: Front-End & Back-End
 TODO video
