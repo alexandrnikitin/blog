@@ -2,7 +2,7 @@
 layout: single
 title: "Hoisting in .NET Explained"
 date: 2015-11-26T17:59:46+02:00
-modified:
+modified: 2017-03-29T13:58:00+02:00
 categories: [.NET]
 excerpt: "Hoisting is a compiler optimization that moves loop-invariant code out of the loop. The post reveals hoisting in .NET and explains what code will be optimized and why."
 tags: [.NET, CLR, JIT, High-performance]
@@ -63,7 +63,7 @@ The entry point for it is the [`Compiler::optHoistLoopCode()`][github-optimizer-
 
 #### Examine the loop
 
-The next interesting method is [`Compiler::optHoistThisLoop`][github-optimizer-optHoistThisLoop] that works with one loop at a time, it picks out only those that suits certain conditions:
+The next interesting method is [`Compiler::optHoistThisLoop`][github-optimizer-optHoistThisLoop] that works with one loop at a time, it picks out only those that meet certain conditions:
 
 * The loop should be a "do-while" loop. This doesn't mean exactly `do {} while ()` keywords in your code. But that implies that the compiler knows that the loop will definitely be executed and conditions will be check at the end of an iteration. "For" loops will be transformed to "do-while" ones if possible.
 * The loop shouldn't start from a `try {} catch {}` block. The compiler won't optimize it.
@@ -71,7 +71,7 @@ The next interesting method is [`Compiler::optHoistThisLoop`][github-optimizer-o
 
 >And now we come close to what's called basic blocks. [__A basic block__][wiki-basicblocks] is a unit of analysis for the compiler, a sequence of code with exactly one entry point and exactly one exit point. Whenever we enter a basic block, the code sequence is executed exactly once and in order. Each method is represented as a doubly linked list of basic blocks.
 
-If the loop suits the conditions we continue with its content, namely the basic blocks. The compiler tries to find the set of definitely-executed basic blocks.
+If the loop meets the conditions we continue with its content, namely the basic blocks. The compiler tries to find the set of definitely-executed basic blocks.
 If the loop has only one exit then we take all [post-dominator][wiki-dominator] blocks for further analysis. If the loop has more than one exits then we take only __the first__ "entry" basic block because we assume that the first block is definitely executed.
 
 Then we iterate over the selected blocks.
@@ -126,10 +126,12 @@ And finally we're done! Thank you for your time! As you can see, hoisting exists
 
 _P.S. The post is actual for RyuJIT and I'm not sure about legacy JIT compilers. Probably, most of the statements are valid for them too._
 
+**Update:** [The part 2 "Hoisting in .NET Examples" is here.]({{ site.url }}{{ site.baseurl }}/hoisting-in-net-examples/)
+
   [github-docs-lch]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#loop-invariant-code-hoisting
   [google-hoisting]: https://www.google.com/search?q=Hoisting+.NET
 
-  [github-compiler-compilemethod]: https://github.com/dotnet/coreclr/blob/master/src/jit/ee_il_dll.cpp#L140
+  [github-compiler-compilemethod]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/ee_il_dll.cpp#L140
   [github-compiler-compcompile]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/src/jit/compiler.cpp#L2990
 
   [github-jitphases]: https://github.com/dotnet/coreclr/blob/release/1.0.0-rc1/Documentation/botr/ryujit-overview.md#phases-of-ryujit
