@@ -57,10 +57,10 @@ This story is about pure performance optimizations based on a real-world case. S
 
 ### Domain:
 
-All websites receive bot traffic! Not a surprise, right? There were quite a few studies from all sides of the advertising business. Commercials tend to reduce the numbers, for obvious reasons, banner impression or click = money. Academics in their turn increase numbers and spread panic, that's the goal of the research after all. I think truth is somewhere in the middle.
+All websites receive bot traffic! Not a surprise, right? There [were quite](https://www.incapsula.com/blog/bot-traffic-report-2016.html) a [few](http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic
+) studies from all sides of the advertising business. Commercials tend to reduce the numbers, for obvious reasons, banner impression or click = money. Academics in their turn increase numbers and spread panic, that's the goal of the research after all. I think truth is somewhere in the middle.
 
-Here's just a few to name:
-- one from Incapsula shows that websites receive 50% of bot traffic in average. https://www.incapsula.com/blog/bot-traffic-report-2016.html
+[The one from Incapsula](https://www.incapsula.com/blog/bot-traffic-report-2016.html) shows that websites receive 50% of bot traffic in average.
 
 A study shows that bots drive 16% of Internet traffic in the US, in Singapore this number reaches 56%.
 Source http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic
@@ -86,18 +86,28 @@ My user agent looks like this at the moment "Mozilla/5.0 (Windows NT 10.0; WOW64
 One of [the Google's crawlers](https://support.google.com/webmasters/answer/1061943) has the following user agent: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 
 
-There are quite a few bot User Agent lists available on the Internet for free. But... There's The Interactive Advertising Bureau (IAB) which "is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry."
+There are quite a few bot User Agent lists available on the Internet for free. But... There's [The Interactive Advertising Bureau (IAB)](https://en.wikipedia.org/wiki/Interactive_Advertising_Bureau) which "is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry."
 
-http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/
+They maintain ["the only right and thorough list of bots"](http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/) (which costs $14000 for non-members)  The list is required for compliance to ~~bla-bla-bla~~ their own standards. It seems that we don't have much choice here.
 
+The list contains a list of tokens that we can find in user agent strings. The simplified version looks like this. There are hunders of those tokens.
+
+```
+googlebot
+bingbot
+twitterbot
+duckduckbot
+curl
+yandex
+...
+```
+
+What we need is to find all those token in a user agent and, if there's a match, filter out the request if it comes from a bot.
 
 https://gitz.adform.com/marius.kazlauskas/serving/blob/master/Adform.AdServing.Lib/Resources/IAB/exclude.txt
 
 The feature is used in few high-load applications like DSP and AdServing.
 
-
-TODO
-https://www.axios.com/most-internet-traffic-doesnt-come-from-humans-2233708130.html
 
 Yeah, it's all about banners.
 
