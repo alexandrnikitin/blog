@@ -12,11 +12,38 @@ share: true
 
 ### TL;DR
 
-This post is based on a real-world feature that is used under high-load scenarios. The post contains a series of various performance optimization steps, from BCL API usage to advanced data structures, from bit twiddling hacks to SIMD instructions. It also covers tools that used to analyze code.
+This post is based on a real-world feature that is used under high-load scenarios. The post narrates a series of various performance optimization steps, from BCL API usage to advanced data structures, from bit twiddling hacks to SIMD instructions. It also covers tools that I usually use to analyze code.
+
+### Content
+
+If you find it interesting you can continue reading or jump to any of the following parts:
+
+- Intro
+- Domain
+- The fundamentals of performance:
+  - Measure, measure, measure
+  - First efficiency then performance
+- Tools and libraries:
+  - BenchmarkDotNet - for benchmarks
+  - ILSpy - c# compiler
+  - WinDBG - .NET under the hood
+  - PerfView - swiss army knife
+  - Intel VTune Amplifier - heavy artillery for low level profiling
+TODO PCM Tools??
+
+- Algorithm
+- Optimizations
+  - API
+
+
 
 ### Intro:
 
-I work for an advertising technology company and we have a feature that identifies and filters out unwanted bot traffic. It’s backed by the Aho–Corasick algorithm, a string searching algorithm that matches all strings simultaneously. In this post we will discover the algorithm itself and its original implementation.
+I work for an advertising technology company (yeah, this is all about banners at the end, I'm sorry for this 😞) and we have a feature that identifies and filters out unwanted bot traffic.
+
+In this post we discover the algorithm itself and its original implementation.
+
+ It’s backed by the Aho–Corasick algorithm, a string searching algorithm that matches all strings simultaneously.
 TODO
 We will learn how to write micro benchmarks, profile code and read IL and assembly code. Step by step we will improve performance by 30 times using different techniques: re-implementing .NET BCL data structures, fixing CPU cache misses, reduce main memory reads by putting values in CPU registers? by force, avoid calls to Method table, evaluate .NET Core (try SIMD?)
 
@@ -28,29 +55,9 @@ This story isn't about .NET vs JVM vs C++ vs ... I won't praise .NET as being aw
 
 This story is about pure performance optimizations based on a real-world case. Step by step we'll improve performance of one production feature.
 
-
-Domain
-
-Algorithm
-
-Fundamentals of performance:
-- First efficiency then performance
-- Measure, measure, measure
-
-Tools and libraries:
-- BenchmarkDotNet - for benchmarks
-- ILSpy - c# compiler
-- WinDBG - .NET under the hood
-- PerfView - swiss army knife
-- Intel VTune Amplifier - heavy artillery for low level profiling
-TODO PCM Tools
-
-Optimizations
-- TODO
-
 ### Domain:
 
-All websites receive bot traffic :) Not a surprise, right? There were quite a few studies from all sides of the business. Commercials tend to reduce the numbers. Academics in their turn increase numbers and spread panic. I think truth is somewhere in the middle.
+All websites receive bot traffic! Not a surprise, right? There were quite a few studies from all sides of the advertising business. Commercials tend to reduce the numbers, for obvious reasons, banner impression or click = money. Academics in their turn increase numbers and spread panic, that's the goal of the research after all. I think truth is somewhere in the middle.
 
 Here's just a few to name:
 - one from Incapsula shows that websites receive 50% of bot traffic in average. https://www.incapsula.com/blog/bot-traffic-report-2016.html
@@ -58,29 +65,30 @@ Here's just a few to name:
 A study shows that bots drive 16% of Internet traffic in the US, in Singapore this number reaches 56%.
 Source http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic
 
+But, surprisingly, not all bots are bad, and some of them are even vital for the Internet. The classification could look like this:
+- White bots (good) - various search engines bots (Google, Bing, [DuckDuckGo](https://duckduckgo.com/)). They are crucial, that's how we discover things on the Internet. They respect and follow [the robots exclusion protocol (robot.txt)](https://en.wikipedia.org/wiki/Robots_exclusion_standard), aware of the Robots HTML <META> tag. That's the most important is that they clearly identify themselves by providing User Agent and IP address lists.
+- Grey bots (neutral) - feed fetchers, crawlers and scrappers. The are similar to the white bots. They don't bring users/clients/money directly, but generate load. They may or may not identify themselves, may or may not follow the robots protocol.
+- Black bots (bad) - fraud, intentional impersonation for profit. They imitate user behavior to get fake impression, clicks, etc.
 
-But, surprisingly, not all bots are bad, and some of them are even vital for the Internet. The classification could look like:
-- White bots (good) - search engines (Google, Bing), TODO robot.txt TODO: Robots <META> tag, clearly identify themselves.
-- Grey bots (neutral) - similar to white bots, they don't bring money directly, but generate load. Feed fetchers, crawlers and scrappers.
-- Black bots (bad) - fraud, intentionally fake impression, clicks, etc. Imitate user behavior, We won't cover it because it a separate huge topic with sophisticated analysis and ML algorithms.
 
-Why?
-Clients don't want to pay for bot traffic
+There's no reason to show a banner for a bot, right? It's pointless, waste of resources and money. And clients don't want to pay for that. The goal is to filter them out.
 
-There are few ways to identify the bot traffic. One of the ways that became a standard in the industry is to use
+I won't cover the black bots because it a separate huge area with sophisticated analysis and ML algorithms.
+We will focus on the white and grey bots that identify themselves as such.
+List of IP addresses and User Agent strings.
+There are few ways to identify the bot traffic. One of the ways that became a standard in the industry is to use a defined list of
 How to identify them?
 
-The Interactive Advertising Bureau (IAB)
+Let's take a look at an example:
+
+My user agent looks like this at the moment "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36"
+
+One of [the Google's crawlers](https://support.google.com/webmasters/answer/1061943) has the following user agent: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+
+
+There are quite a few bot User Agent lists available on the Internet for free. But... There's The Interactive Advertising Bureau (IAB) which "is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry."
+
 http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/
-"is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry."
-
-"It is comprised of more than 650 leading media and technology companies that are responsible for selling, delivering, and optimizing digital advertising or marketing campaigns."
-
-User Agent:
-
-My user agent: "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
-Google Web search: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-Google UAs: https://support.google.com/webmasters/answer/1061943?hl=en
 
 
 https://gitz.adform.com/marius.kazlauskas/serving/blob/master/Adform.AdServing.Lib/Resources/IAB/exclude.txt
@@ -93,7 +101,7 @@ https://www.axios.com/most-internet-traffic-doesnt-come-from-humans-2233708130.h
 
 Yeah, it's all about banners.
 
-![About code purpose!]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Strip-Vendeur-de-bannières-650-finalenglish.jpg)
+![About code purpose!]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/about-code-purpose.jpg)
 
 ### Measure, measure, measure
 
