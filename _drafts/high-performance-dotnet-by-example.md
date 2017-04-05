@@ -12,36 +12,35 @@ share: true
 
 ### TL;DR
 
-This post is based on a real-world feature that is used under high-load scenarios. The post narrates a series of various performance optimization steps, from BCL API usage to advanced data structures, from bit twiddling hacks to SIMD instructions. It also covers tools that I usually use to analyze code.
+This post is based on a real-world feature that is used under high-load scenarios. The post walks through a series of various performance optimization steps, from BCL API usage to advanced data structures, from bit twiddling hacks to SIMD instructions. It also covers tools that I usually use to analyze code.
 
 ### Content
 
-If you find it interesting you can continue reading or jump to any of the following parts:
+If you find it interesting you can continue reading or jump to any of the sections:
 
 - Intro
 - Domain
 - The fundamentals of performance:
-  - Measure, measure, measure
+  - Measure, measure, measure!
   - First efficiency then performance
 - Tools and libraries:
-  - BenchmarkDotNet - for benchmarks
-  - ILSpy - c# compiler
-  - WinDBG - .NET under the hood
-  - PerfView - swiss army knife
-  - Intel VTune Amplifier - heavy artillery for low level profiling
+  - BenchmarkDotNet
+  - ILSpy
+  - WinDBG
+  - PerfView
+  - Intel VTune Amplifier
 TODO PCM Tools??
 
 - Algorithm
 - Optimizations
   - API
+  - TODO
 
 
 
 ### Intro:
 
-I work for an advertising technology company (yeah, this is all about banners at the end, I'm sorry for this 😞) and we have a feature that identifies and filters out unwanted bot traffic.
-
-In this post we discover the algorithm itself and its original implementation.
+I work for an advertising technology company (yeah, this is all about banners at the end, I'm sorry for this 😞) and we have a feature that identifies and filters out unwanted bot traffic. In this post we discover the domains area, algorithm used and its original implementation.
 
  It’s backed by the Aho–Corasick algorithm, a string searching algorithm that matches all strings simultaneously.
 TODO
@@ -51,14 +50,15 @@ We will learn how to write micro benchmarks, profile code and read IL and assemb
 This is a story about one real-world performance optimization that I implemented some time ago. I often hear people blaming languages and platforms for being slow, not suitable for high-performance requirements.
 The intentions is to show that in 99%
 
-This story isn't about .NET vs JVM vs C++ vs ... I won't praise .NET as being awesome. It's not about any kind of business logic optimizations. It's definitely not about GC tunning, blaming.
+This post isn't about .NET vs JVM vs C++ vs... I won't praise .NET as being awesome. It's not about any kind of business logic optimizations. It's definitely not about GC tunning, blaming.
 
 This story is about pure performance optimizations based on a real-world case. Step by step we'll improve performance of one production feature.
 
+I
+
 ### Domain:
 
-All websites receive bot traffic! Not a surprise, right? There [were quite](https://www.incapsula.com/blog/bot-traffic-report-2016.html) a [few](http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic
-) studies from all sides of the advertising business. Commercials tend to reduce the numbers, for obvious reasons, banner impression or click = money. Academics in their turn increase numbers and spread panic, that's the goal of the research after all. I think truth is somewhere in the middle.
+All websites receive bot traffic! Not a surprise, right? There [were quite](https://www.incapsula.com/blog/bot-traffic-report-2016.html) a [few](http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic) studies from all sides of the advertising business. Commercials tend to reduce the numbers, for obvious reasons, banner impression or click = money. Academics in their turn increase numbers and spread panic, that's the goal of the research after all. I think truth is somewhere in the middle.
 
 [The one from Incapsula](https://www.incapsula.com/blog/bot-traffic-report-2016.html) shows that websites receive 50% of bot traffic in average.
 
@@ -113,7 +113,7 @@ Yeah, it's all about banners.
 
 ![About code purpose!]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/about-code-purpose.jpg)
 
-### Measure, measure, measure
+### Measure, measure, measure!
 
 "If you can not measure it, you can not improve it." Lord Kelvin
 Right measurement is hard!
@@ -132,20 +132,23 @@ Microbenchmarking is hard!
 - **DO** minimize the effects of other applications on the performance of the microbenchmark by closing as many unnecessary applications as possible.
 
 You development pipeline looks like the following:
+```
 A feature -> C#
 C# + Compiler -> IL assembly
 IL assembly + BCL + 3rdParty libs -> Application
 Application + CLR -> ASM
 ASM + CPU -> Result
+```
 
 Infrastructure:
+```
 OS: Windows, Linux, OS X
 Compilers: Legacy, Roslyn
 CLR: CLR2, CLR4, CoreCLR, Mono
 GC: Microsoft GC (different modes), Boehm, Sgen
 JIT: Legacy x86 & x64, RyuJIT
 Compilation: JIT, NGen, MPGO, .NET Native
-
+```
 
 ### First efficiency then performance
 
@@ -245,32 +248,21 @@ Sandbox console app
 #### dotTrace & co
 
 
-##### Perfview
-Swiss army knife
-Tutorial
-Videos https://channel9.msdn.com/Series/PerfView-Tutorial
+##### PerfView
 
-Time based - sampling
-Memory profiling
-ETW events
+TODO pic
 
-CMD args: https://github.com/lowleveldesign/debug-recipes/blob/master/perfview/perfview-cmdline.txt
+Free, can do a lot.
+PerfView is a general purpose performance-analysis tool for .NET that's like a Swiss army knife. It can do many things. PerfView is a must to have in your tool belt.
 
+CPU profiling, Memory profiling and heap dumps analysis, capturing ETW events, it supports even most important hardware counters like Cache misses, branch mispredictions, instructions retired.
 
 
 ##### Intel VTune Amplifier
-heavy metal of profilers
-$$$
-low overhead
-Languages: C, C++, C#, Fortran, Java, ASM and more.
 
-use production data?
+TODO pic
 
-AMD Code XL
-
-Shows how CPU executes your code.
-Driver hundreds of hardware! counters and metrics
-
+Intel VTune Amplifier is a commercial application for software performance analysis. It supports many programming languages including C#. In my opinion, it's the best tool for low level performance analysis on the market. It shows not only what and how long CPU executes a piece of code but **how** CPU executes that. It exposes hundreds if not thousands of **hardware** counters and registers. It has low overhead hence. It's not so usable for general application development as it's too low level. Tools like PerfView show better overview.
 
 #### IL:
 
