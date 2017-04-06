@@ -146,7 +146,7 @@ OS: Windows, Linux, OS X
 Compilers: Legacy, Roslyn
 CLR: CLR2, CLR4, CoreCLR, Mono
 GC: Microsoft GC (different modes), Boehm, Sgen
-JIT: Legacy x86 & x64, RyuJIT
+JIT: Legacy x86 & x64, RyuJIT, (Llvm MONO TODO)
 Compilation: JIT, NGen, MPGO, .NET Native
 ```
 
@@ -217,35 +217,29 @@ the only .NET implementation: https://www.informit.com/guides/content.aspx?g=dot
 
 ##### BenchmarkDotNet:
 
+TODO pic with a bench?
+
+http://benchmarkdotnet.org/
 https://github.com/PerfDotNet/BenchmarkDotNet
+FOSS
 
-- A sample benchmark
-- Config
-- Diagnosers
+"Benchmarking is really hard (especially microbenchmarking)" and BenchmarkDotNet is here to help us. Harness.
 
-Task: A benchmark
-
-How does it work: https://github.com/PerfDotNet/BenchmarkDotNet#how-it-works
-
-Review the sources
-- Isolated project based on templates
-- MethodInvoker: Pilot, Idle, Warmup, Target, Clocks
-- Generated project
-- Results: + R plot
+It supported Full .NET Framework, .NET Core, Mono and works on Windows, Linux, MacOS.
+x86, x64
+LegacyJit and RuyJIT
 
 
-Tasks:
-x86 vs x64
-RuyJIT vs LegacyJit
+Like unit tests, fast feedback.
 
 
+Diagnosers
 
-#### Profiling:
-"Profilers Are Lying Hobbits (and we hate them!)" https://www.infoq.com/presentations/profilers-hotspots-bottlenecks
+Creates an isolated project per benchmark based on templates.
+It supports various reporting formats such as markdown, csv, html, plain text, png plots.
 
-Sandbox console app
+More details on how does it work: http://benchmarkdotnet.org/HowItWorks.htm
 
-#### dotTrace & co
 
 
 ##### PerfView
@@ -257,6 +251,9 @@ PerfView is a general purpose performance-analysis tool for .NET that's like a S
 
 CPU profiling, Memory profiling and heap dumps analysis, capturing ETW events, it supports even most important hardware counters like Cache misses, branch mispredictions, instructions retired.
 
+https://github.com/Microsoft/perfview
+
+Video series: https://channel9.msdn.com/Series/PerfView-Tutorial
 
 ##### Intel VTune Amplifier
 
@@ -264,18 +261,21 @@ TODO pic
 
 Intel VTune Amplifier is a commercial application for software performance analysis. It supports many programming languages including C#. In my opinion, it's the best tool for low level performance analysis on the market. It shows not only what and how long CPU executes a piece of code but **how** CPU executes that. It exposes hundreds if not thousands of **hardware** counters and registers. It has low overhead hence. It's not so usable for general application development as it's too low level. Tools like PerfView show better overview.
 
-#### IL:
+https://software.intel.com/en-us/intel-vtune-amplifier-xe
 
-Ildasm.exe (IL Disassembler):
+#### ILSpy:
 
-https://msdn.microsoft.com/en-us/library/f7dy01k1(v=vs.110).aspx
+TODO pic
 
-ILSpy
+The best FOSS and easy to use .NET decompiler.
 
-Tasks: Check sources
-
+https://github.com/icsharpcode/ILSpy
+http://ilspy.net/
+TODO
 
 #### Assembly code:
+
+How to get Assembly code
 
 Visual Studio
 TODO options
@@ -286,41 +286,157 @@ SOSex: http://www.stevestechspot.com/default.aspx
 HOWTO: Debugging .NET with WinDbg https://docs.google.com/document/d/1yMQ8NAQZEBtsfVp7AsFLSA_MkIKlYNuSowG72_nU0ek
 WinDbgCs https://github.com/southpolenator/WinDbgCs
 
+TODO
 CLRMD https://github.com/Microsoft/clrmd/blob/master/Documentation/MachineCode.md
 
 Task: Sources
 
-More reads:
-A fundamental introduction to x86 assembly programming https://www.nayuki.io/page/a-fundamental-introduction-to-x86-assembly-programming
-
 ### Optimizations!!!
 
-### Basics
+### Measurement
+
+Create a benchmark for fast feedback
+TODO
+
+Is good enough.
 
 #### Lesson 1: Know APIs of libraries you use!
 
-Task: Profile current version and find a bottleneck.
-Task: Sandbox lib + Benchmark
-
-#### Lesson 2: Know BCL collections and data structures
-Demo: profile dotTrace
-Demo: Perfview
-Profilers are lying hobbits!!!
-
-BenchmarkDotNet MemoryDiagnoser
-
-Side:
-Try Server GC: less GCs
-
-Task: find reason for the allocation using Perfview & ILSpy
+```
+public AhoCorasickTreeNode GetTransition(char c)
+{
+    return _transitionsDictionary.ContainsKey(c)
+               ? _transitionsDictionary[c]
+               : null;
+}
+```
 
 
+```
+public AhoCorasickTreeNode GetTransition(char c)
+{
+    _transitionsDictionary.TryGetValue(c, out AhoCorasickTreeNode node);
+    return node;
+}
+```
 
-#### Lesson 3: Know basic data structures
-BCL is too generic and isn't suitable for high performance
+Results:
+
+```
+// * Summary *
+
+BenchmarkDotNet=v0.10.3.0, OS=Microsoft Windows NT 6.2.9200.0
+Processor=Intel(R) Core(TM) i7-4600U CPU 2.10GHz, ProcessorCount=4
+Frequency=2630627 Hz, Resolution=380.1375 ns, Timer=TSC
+  [Host]     : Clr 4.0.30319.42000, 64bit RyuJIT-v4.6.1637.0
+  Job-TTMHSM : Clr 4.0.30319.42000, 64bit RyuJIT-v4.6.1637.0
+
+Jit=RyuJit  LaunchCount=3  TargetCount=10
+WarmupCount=10
+
+       Method |      Mean |    StdDev | Scaled | Scaled-StdDev |
+------------- |---------- |---------- |------- |-------------- |
+         Test | 6.3114 us | 0.0530 us |   1.00 |          0.00 |
+ TestImproved | 5.7869 us | 0.0584 us |   0.92 |          0.01 |
+ ```
+
+Great, almost 10% of improvement just using proper API methods.
+
+Lesson learnt: know APIs of libraries you use.
+
+TODO
+
+#### Lesson: Know .NET/ CLR internals
+
+Fire PerfView
+Allocations
+
+
+Enumerator? Wait what?
+
+
+If we take a look at the allocation stacktrace:
+```
+
+```
+
+
+```
+public static bool Any<TSource>(this IEnumerable<TSource> source)
+{
+  if (source == null)
+    throw Error.ArgumentNull("source");
+  using (IEnumerator<TSource> enumerator = source.GetEnumerator())
+  {
+    if (enumerator.MoveNext())
+      return true;
+  }
+  return false;
+}
+```
+
+GetEnumerator() implementation
+
+
+IL
+```
+.method private final hidebysig newslot virtual
+	instance class System.Collections.Generic.IEnumerator`1<!T> 'System.Collections.Generic.IEnumerable<T>.GetEnumerator' () cil managed
+{
+	.custom instance void __DynamicallyInvokableAttribute::.ctor() = (
+		01 00 00 00
+	)
+	.override method instance class System.Collections.Generic.IEnumerator`1<!0> class System.Collections.Generic.IEnumerable`1<!T>::GetEnumerator()
+	// Method begins at RVA 0xd3f33
+	// Code size 12 (0xc)
+	.maxstack 8
+
+	IL_0000: ldarg.0
+	IL_0001: newobj instance void valuetype System.Collections.Generic.List`1/Enumerator<!T>::.ctor(class System.Collections.Generic.List`1<!0>)
+	IL_0006: box valuetype System.Collections.Generic.List`1/Enumerator<!T>
+	IL_000b: ret
+} // end of method List`1::'System.Collections.Generic.IEnumerable<T>.GetEnumerator'
+```
+
+Call to interface method happen via MethodTable structure.
+
+Struct as interface, no MethodTable they need to be wrapped into object layout which is header, MethodTable, data...
+
+Get rid of IEnumerable<T> for List<T> and check for `Count > 0` instead of Any()
+
+```
+Method |      Mean |    StdDev | Scaled | Scaled-StdDev |
+------------- |---------- |---------- |------- |-------------- |
+  Test | 5.8257 us | 0.0527 us |   1.00 |          0.00 |
+TestImproved | 2.7908 us | 0.0387 us |   0.48 |          0.01 |
+```
+
+Wow, 2x improvement just joggling .NET internals methods. Can we do faster?
+
+
+#### Lesson: Know basic data structures
+
+Fire PerfView and find the bottleneck.
+
+TODO pic from PerfView
+
+
+Dictionary is an awesome data structure, it's generic it works.
+Trade offs.
+But CL is too generic and isn't suitable for high performance
 
 indirections
 vcalls
+
+
+```
+Method |      Mean |    StdDev | Scaled | Scaled-StdDev |
+------------- |---------- |---------- |------- |-------------- |
+  Test | 2.7792 us | 0.0033 us |   1.00 |          0.00 |
+TestImproved | 1.8074 us | 0.0161 us |   0.65 |          0.01 |
+```
+
+That's 1.5 time faster.
 
 #### Lesson 4: Know overheads
 
@@ -346,6 +462,9 @@ jle 0x7ffcbc4238a1
 
 Obligated picture to show how complex CPUs are
 
+
+complex beasts
+message passing layered cache system
 CPU: Front-End & Back-End
 TODO video
 
@@ -369,6 +488,39 @@ RAM Latency = 36 cycles + 57 ns
 Source: http://www.7-cpu.com/cpu/Haswell.html
 
 
+TODO CPU ports
+
+Capable of executing few instruction per second.
+
+There's a question on Stack Overflow, a guy asks a pretty serious and interesting question: How to achieve the maximum number of FLOPS per CPU cycle.
+
+But the answer is rather entertaining: "I've done this exact task before. But it was mainly to measure power consumption and CPU temperatures."
+
+The code looks like the following
+```
+double test_dp_mac_AVX(double x,double y,uint64 iterations){
+    register __m256d r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,rA,rB,rC,rD,rE,rF;
+
+    //  Generate starting data.
+    r0 = _mm256_set1_pd(x);
+    r1 = _mm256_set1_pd(y);
+
+    r8 = _mm256_set1_pd(-0.0);
+
+    r2 = _mm256_xor_pd(r0,r8);
+    r3 = _mm256_or_pd(r0,r8);
+    r4 = _mm256_andnot_pd(r8,r0);
+    r5 = _mm256_mul_pd(r1,_mm256_set1_pd(0.37796447300922722721));
+    r6 = _mm256_mul_pd(r1,_mm256_set1_pd(0.24253562503633297352));
+    r7 = _mm256_mul_pd(r1,_mm256_set1_pd(4.1231056256176605498));
+    r8 = _mm256_add_pd(r0,_mm256_set1_pd(0.37796447300922722721));
+...
+and many more lines like this
+```
+
+That's basically assembly code written in C++ that works directly with CPU registers and instructions. It amazing how much power C++ gives you (not sure about register keyword though)
+
+The author warns you: "If you decide to compile and run this, pay attention to your CPU temperatures!!!"
 FLOPs per cycle: http://stackoverflow.com/questions/8389648/how-do-i-achieve-the-theoretical-maximum-of-4-flops-per-cycle
 
 TODO Branch prediction
@@ -376,6 +528,9 @@ TODO Branch prediction
 
 #### Lesson 5: Know advanced data structures
 
+At this point PerfView won't show us any useful insights. It's time for the heavy artillery.
+
+VTune
 
 
 Classic hashset -> open address hashset
@@ -387,6 +542,8 @@ Memory exploration
 #### Lesson 6: Know hacks
 
 MOD is expensive
+
+Division unit
 
 
 #### Lesson 7: Loop unrolling
@@ -400,6 +557,7 @@ MOD is expensive
 Reconstruct array with data based on real production load.
 
 
+TODO NUMA?
 
 ###
 
