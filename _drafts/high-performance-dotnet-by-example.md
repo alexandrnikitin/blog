@@ -58,6 +58,11 @@ I
 
 ### Domain:
 
+![About code purpose!]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/about-code-purpose.jpg)
+
+(sigh) Yes, this is all about banners.
+
+
 All websites receive bot traffic! Not a surprise, right? There [were quite](https://www.incapsula.com/blog/bot-traffic-report-2016.html) a [few](http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic) studies from all sides of the advertising business. Commercials tend to reduce the numbers, for obvious reasons, banner impression or click = money. Academics in their turn increase numbers and spread panic, that's the goal of the research after all. I think truth is somewhere in the middle.
 
 [The one from Incapsula](https://www.incapsula.com/blog/bot-traffic-report-2016.html) shows that websites receive 50% of bot traffic in average.
@@ -90,7 +95,7 @@ There are quite a few bot User Agent lists available on the Internet for free. B
 
 They maintain ["the only right and thorough list of bots"](http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/) (which costs $14000 for non-members)  The list is required for compliance to ~~bla-bla-bla~~ their own standards. It seems that we don't have much choice here.
 
-The list contains a list of tokens that we can find in user agent strings. The simplified version looks like this. There are hunders of those tokens.
+The list contains a list of tokens that we can find in user agent strings. The simplified version looks like this. There are hundreds of those tokens.
 
 ```
 googlebot
@@ -110,8 +115,6 @@ The feature is used in few high-load applications like DSP and AdServing.
 
 
 Yeah, it's all about banners.
-
-![About code purpose!]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/about-code-purpose.jpg)
 
 ### Measure, measure, measure!
 
@@ -295,7 +298,7 @@ Task: Sources
 
 ### Measurement
 
-Create a benchmark for fast feedback
+Create a benchmark for quick feedback
 TODO
 
 Is good enough.
@@ -338,7 +341,7 @@ WarmupCount=10
 ------------- |---------- |---------- |------- |-------------- |
          Test | 6.3114 us | 0.0530 us |   1.00 |          0.00 |
  TestImproved | 5.7869 us | 0.0584 us |   0.92 |          0.01 |
- ```
+```
 
 Great, almost 10% of improvement just using proper API methods.
 
@@ -357,7 +360,6 @@ Enumerator? Wait what?
 
 If we take a look at the allocation stacktrace:
 ```
-
 ```
 
 
@@ -378,7 +380,8 @@ public static bool Any<TSource>(this IEnumerable<TSource> source)
 GetEnumerator() implementation
 
 
-IL
+ILSpy will help us here
+
 ```
 .method private final hidebysig newslot virtual
 	instance class System.Collections.Generic.IEnumerator`1<!T> 'System.Collections.Generic.IEnumerable<T>.GetEnumerator' () cil managed
@@ -421,11 +424,39 @@ Fire PerfView and find the bottleneck.
 TODO pic from PerfView
 
 
-Dictionary is an awesome data structure, it's generic it works.
-Trade offs.
-But CL is too generic and isn't suitable for high performance
+```
+private int FindEntry(TKey key)
+{
+  if ((object) key == null)
+    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+  if (this.buckets != null)
+  {
+    int num = this.comparer.GetHashCode(key) & int.MaxValue;
+    for (int index = this.buckets[num % this.buckets.Length]; index >= 0; index = this.entries[index].next)
+    {
+      if (this.entries[index].hashCode == num && this.comparer.Equals(this.entries[index].key, key))
+        return index;
+    }
+  }
+  return -1;
+}
+```
 
-indirections
+Call stack of the happy path
+
+Dictionary<TKey, TValue>.FindEntry()
+IEqualityComparer<TKey>.GetHashCode(T obj)
+Char.GetHashCode()
+IEqualityComparer<TKey>.Equals(T x, T y)
+Char.Equals(char obj)
+
+We know all our data types, no need in generic code.
+No need in hashcode and additional comparisons.
+
+Dictionary is an awesome data structure, it's generic it works.
+But there are trade offs. There are always trade offs.
+But BCL is too generic and isn't suitable for high performance.
+
 vcalls
 
 
@@ -438,35 +469,14 @@ TestImproved | 1.8074 us | 0.0161 us |   0.65 |          0.01 |
 
 That's 1.5 time faster.
 
-#### Lesson 4: Know overheads
-
-Basic hotspots
-Memory access
-
-Memory writes:
-By Ref
-
-Memory reads
-```
-if (pointer.Results.Count > 0)
-```
-```
-mov rax, qword ptr [rsp+0x28]
-mov rax, qword ptr [rax+0x10]
-cmp dword ptr [rax+0x18], 0x0
-jle 0x7ffcbc4238a1
-```
-
-
 #### Lesson 4: Know how CPU works
 
 Obligated picture to show how complex CPUs are
+TODO pic
 
 
 complex beasts
 message passing layered cache system
-CPU: Front-End & Back-End
-TODO video
 
 CPU cache
 
@@ -488,6 +498,17 @@ RAM Latency = 36 cycles + 57 ns
 Source: http://www.7-cpu.com/cpu/Haswell.html
 
 
+Sequential memory access
+Prefetch
+C/C++ gives you more control
+.NET can get it too https://github.com/dotnet/coreclr/issues/5025
+
+
+Essentially CPU can be divided to Front-End & Back-End
+TODO video
+
+
+
 TODO CPU ports
 
 Capable of executing few instruction per second.
@@ -497,6 +518,7 @@ There's a question on Stack Overflow, a guy asks a pretty serious and interestin
 But the answer is rather entertaining: "I've done this exact task before. But it was mainly to measure power consumption and CPU temperatures."
 
 The code looks like the following
+
 ```
 double test_dp_mac_AVX(double x,double y,uint64 iterations){
     register __m256d r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,rA,rB,rC,rD,rE,rF;
@@ -515,7 +537,9 @@ double test_dp_mac_AVX(double x,double y,uint64 iterations){
     r7 = _mm256_mul_pd(r1,_mm256_set1_pd(4.1231056256176605498));
     r8 = _mm256_add_pd(r0,_mm256_set1_pd(0.37796447300922722721));
 ...
+
 and many more lines like this
+
 ```
 
 That's basically assembly code written in C++ that works directly with CPU registers and instructions. It amazing how much power C++ gives you (not sure about register keyword though)
@@ -523,14 +547,42 @@ That's basically assembly code written in C++ that works directly with CPU regis
 The author warns you: "If you decide to compile and run this, pay attention to your CPU temperatures!!!"
 FLOPs per cycle: http://stackoverflow.com/questions/8389648/how-do-i-achieve-the-theoretical-maximum-of-4-flops-per-cycle
 
+
+
+
+
+
 TODO Branch prediction
 
-
-#### Lesson 5: Know advanced data structures
+#### Lesson 4: Know overheads
+v5
 
 At this point PerfView won't show us any useful insights. It's time for the heavy artillery.
 
 VTune
+
+Basic hotspots
+Memory access
+
+Memory writes:
+By Ref
+
+Memory reads
+
+```
+if (pointer.Results.Count > 0)
+```
+
+```
+mov rax, qword ptr [rsp+0x28]
+mov rax, qword ptr [rax+0x10]
+cmp dword ptr [rax+0x18], 0x0
+jle 0x7ffcbc4238a1
+```
+
+
+#### Lesson: Know advanced data structures
+v6
 
 
 Classic hashset -> open address hashset
@@ -539,18 +591,26 @@ Memory exploration
 
 
 
-#### Lesson 6: Know hacks
-
+#### Lesson: Know hacks
+v7
 MOD is expensive
 
 Division unit
 
-
-#### Lesson 7: Loop unrolling
-
+```
+Method |        Mean |    StdDev | Scaled | Scaled-StdDev |
+------------- |------------ |---------- |------- |-------------- |
+  Test | 787.3592 ns | 3.9424 ns |   1.00 |          0.00 |
+TestImproved | 435.0724 ns | 1.7562 ns |   0.55 |          0.00 |
+```
 
 #### Lesson: Going unsafe
 "All is Fair in Love and War"
+
+
+#### Lesson 7: Loop unrolling
+???
+
 
 
 #### MOAR
