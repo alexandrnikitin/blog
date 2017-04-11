@@ -264,6 +264,8 @@ TODO pic
 
 Intel VTune Amplifier is a commercial application for software performance analysis. It supports many programming languages including C#. In my opinion, it's the best tool for low level performance analysis on the market. It shows not only what and how long CPU executes a piece of code but **how** CPU executes that. It exposes hundreds if not thousands of **hardware** counters and registers. It has low overhead hence. It's not so usable for general application development as it's too low level. Tools like PerfView show better overview.
 
+Awesome documentation.
+
 https://software.intel.com/en-us/intel-vtune-amplifier-xe
 
 #### ILSpy:
@@ -303,7 +305,7 @@ TODO
 
 Is good enough.
 
-#### Lesson 1: Know APIs of libraries you use!
+#### Know APIs of libraries you use!
 
 ```
 public AhoCorasickTreeNode GetTransition(char c)
@@ -349,7 +351,7 @@ Lesson learnt: know APIs of libraries you use.
 
 TODO
 
-#### Lesson: Know .NET/ CLR internals
+#### Know CLR internals
 
 Fire PerfView
 Allocations
@@ -417,7 +419,7 @@ TestImproved | 2.7908 us | 0.0387 us |   0.48 |          0.01 |
 Wow, 2x improvement just joggling .NET internals methods. Can we do faster?
 
 
-#### Lesson: Know basic data structures
+#### Know Basic data structures
 
 Fire PerfView and find the bottleneck.
 
@@ -469,7 +471,7 @@ TestImproved | 1.8074 us | 0.0161 us |   0.65 |          0.01 |
 
 That's 1.5 time faster.
 
-#### Lesson 4: Know how CPU works
+#### How CPU works
 
 Obligated picture to show how complex CPUs are
 TODO pic
@@ -483,6 +485,7 @@ CPU cache
 Intel i7-4770 (Haswell), 3.4 GHz
 
 Sizes:
+Cache line = 64 bytes
 L1 Data cache = 32 KB
 L1 Instruction cache = 32 KB
 L2 cache = 256 KB
@@ -505,9 +508,6 @@ C/C++ gives you more control
 
 
 Essentially CPU can be divided to Front-End & Back-End
-TODO video
-
-
 
 TODO CPU ports
 
@@ -542,20 +542,25 @@ and many more lines like this
 
 ```
 
-That's basically assembly code written in C++ that works directly with CPU registers and instructions. It amazing how much power C++ gives you (not sure about register keyword though)
+That's basically assembly code written in C++ that works directly with CPU registers and instructions. It amazing how much power and control C++ gives you (not sure about register keyword though)
 
 The author warns you: "If you decide to compile and run this, pay attention to your CPU temperatures!!!"
 FLOPs per cycle: http://stackoverflow.com/questions/8389648/how-do-i-achieve-the-theoretical-maximum-of-4-flops-per-cycle
 
 
-
-
-
+The Out-of-Order Execution Engine
 
 TODO Branch prediction
 
-#### Lesson 4: Know overheads
+Reference: "Intel® 64 and IA-32 Architectures Optimization Reference Manual"
+http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf
+
+#### Know overheads
 v5
+
+Run General Exploration analysis to triage hardware issues in your application. This type collects a complete list of events for analyzing a typical client application.
+See the tutorial for a C++ sample code.
+Use Memory Access analysis to identify memory-related issues, like NUMA problems and bandwidth-limited accesses, and attribute performance events to memory objects (data structures), which is provided due to instrumentation of memory allocations/de-allocations and getting static/global variables from symbol information.
 
 At this point PerfView won't show us any useful insights. It's time for the heavy artillery.
 
@@ -564,10 +569,10 @@ VTune
 Basic hotspots
 Memory access
 
-Memory writes:
+TODO Memory writes & memory reads
+
 By Ref
 
-Memory reads
 
 ```
 if (pointer.Results.Count > 0)
@@ -584,18 +589,20 @@ jle 0x7ffcbc4238a1
 #### Lesson: Know advanced data structures
 v6
 
+Memory exploration
+
+Why classic hashset is bad? Two arrays, pointer indirection, cache misses, collisions -> more misses.
 
 Classic hashset -> open address hashset
 
-Memory exploration
+I believe the open address hashset should be the default one in BCL.
 
 
-
-#### Lesson: Know hacks
+#### Know hacks
 v7
 MOD is expensive
 
-Division unit
+Back-End -> Division unit
 
 ```
 Method |        Mean |    StdDev | Scaled | Scaled-StdDev |
@@ -603,6 +610,78 @@ Method |        Mean |    StdDev | Scaled | Scaled-StdDev |
   Test | 787.3592 ns | 3.9424 ns |   1.00 |          0.00 |
 TestImproved | 435.0724 ns | 1.7562 ns |   0.55 |          0.00 |
 ```
+
+#### ???
+
+I made a huge mistake. I benchmarked and profiled the code in a tight loop like the following:
+
+```
+for (var i = 0; i < 1000000; i++)
+{
+    tree.Contains(UserAgent);
+}
+```
+
+It is completely out of context and has different load profile. It shows completely different picture.
+Our tree is relatively small and only ~30Kb that perfectly fits into L1 cache. In a tight loop, all data resides in L1 cache and hides all memory related issues. While in the wild the code works under different memory pattern, we call the data structure only once per network request and there's a bunch of other business logic around it. That means that even L3 cache doesn't have the data. CPU stalls for memory.
+
+Having said that, all CPU optimizations are useless, CPU wait for requested memory to received from RAM -> L3 -> L2 -> L1 -> registers
+
+Load array from the heap
+
+range check
+
+CPI ~5 cycles per one instruction.
+
+Source Line	Source	CPU Time	L1 Bound	LLC Miss	Loads	Stores	LLC Miss Count	Average Latency (cycles)	Source File
+```
+83	            var keyThere = _entries[ind].Key;	2.580s	8.8%	0.0%	10,628,118,834	0	0	8	AhoCorasickTreeNode.cs
+```
+
+```
+Address	Source Line	Assembly	CPU Time	L1 Bound	LLC Miss	Loads	Stores	LLC
+Miss Count	Average Latency (cycles)
+0x7fff7a2b09fb	82	and edx, eax	0.960s	5.8%	0.0%	0	0	0	0
+0x7fff7a2b09fd	83	mov rcx, qword ptr [rcx+0x20]	0.073s	25.7%	0.0%	1,774,253,226	0	0	8
+0x7fff7a2b0a01	83	mov r8, rcx	0.038s	92.2%	0.0%	0	0	0	0
+0x7fff7a2b0a04	83	mov r9d, dword ptr [r8+0x8]	0.001s	0.0%	0.0%	4,134,724,038	0	0	8
+0x7fff7a2b0a08	83	cmp edx, r9d	2.007s	6.6%	0.0%	600,018	0	0	0
+
+Address	Source Line	Assembly	CPU Time	L1 Bound	LLC Miss	Loads	Stores	LLC Miss Count	Average Latency (cycles)
+
+Wait? again?
+0x7fff7a2b0b84	86	cmp edx, r9d	0.431s	15.0%	0.0%	0	0	0	0
+0x7fff7a2b0b87	86	jnb 0x7fff7a2b0b9a <Block 9>							
+
+```
+
+Let's take a look what we have:
+Reminder: cache sizes, latency. analyze sizes. scattered around the heap. Every next reference to a not yet meet node or array = cache miss = 50-100ns latency.
+
+What can we do here?
+
+Sequential memory access, optimizer can help and prefetch data.
+Every tree can be put into array
+
+Also we want to keep the tree as small as possible.
+
+Now we came to the point where microbenchmarking doesn't show us the real picture and scary to say useless.
+And it's quite difficult if not impossible to measure changes and their impact.
+The only CPU hardware counters. We identified the bottleneck as LLC misses. We are going to monitor only this counter via VTune Amplifier Custom analysis.
+
+
+
+#### Analyze data
+TODO
+ASCII with some special symbols. Hashing is not needed.
+
+```
+Method |        Mean |    StdDev | Scaled | Scaled-StdDev |
+------------- |------------ |---------- |------- |-------------- |
+  Test | 451.1660 ns | 2.0661 ns |   1.00 |          0.00 |
+TestImproved | 287.9745 ns | 2.5764 ns |   0.64 |          0.01 |
+```
+
 
 #### Lesson: Going unsafe
 "All is Fair in Love and War"
