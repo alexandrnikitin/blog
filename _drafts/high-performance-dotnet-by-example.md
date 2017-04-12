@@ -51,14 +51,14 @@ This story is about pure performance optimizations based on a real-world case. S
 
 I
 
-### Domain:
+## Domain:
 
 I work for an advertising technology company. The comics shows the lowdown:
 ![About code purpose!]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/about-code-purpose.jpg)
 
-It's a bit exaggerated but... (sigh) yes, this is all about banners at the end, I'm sorry for this 😞 Back to the domain.
+It's a bit exaggerated but... (sigh) yes, this is all about banners at the end, I'm sorry for this 😞
 
-All websites receive bot traffic! Not a surprise, right? There were quite a few studies from all sides of the advertising business. For instance, [the one from Incapsula](https://www.incapsula.com/blog/bot-traffic-report-2016.html) shows that websites receive 50% of bot traffic in average. [Another one from Solve Media](http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic) shows that bots drive 16% of Internet traffic in the US, this number reaches 56% in Singapore. In general, commercials tend to reduce the numbers, for obvious reasons - banner impression or click = money. Academics and not so involved parties, in their turn, increase numbers and spread panic, that's the goal of a research after all. I think truth is somewhere in the middle.
+All websites receive bot traffic! Not a surprise, right? There were quite a few studies from all sides of the advertising business. For instance, [the one from Incapsula](https://www.incapsula.com/blog/bot-traffic-report-2016.html) shows that websites receive 50% of bot traffic in average. [Another one from Solve Media](http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic) shows that bots drive 16% of Internet traffic in the US, this number reaches 56% in Singapore. In general, commercials tend to reduce the numbers, for obvious reasons - banner impression or click = money. Academics and not so involved parties, in their turn, increase the numbers and spread panic, that's the goal of a research after all. I believe truth is somewhere in the middle.
 
 But, surprisingly, not all bots are bad, and some of them are even vital for the Internet. The classification could look like this:
 
@@ -70,7 +70,7 @@ But, surprisingly, not all bots are bad, and some of them are even vital for the
 
 We won't cover black bots because it is a huge topic with sophisticated analysis and Machine learning algorithms. We will focus on the white and grey bots that identify themselves as such.
 
-There's no reason to show a banner for a bot, right? It's pointless, waste of resources and money. And clients don't want to pay for that and our goal is to filter them out. There are few ways to identify bot traffic. One of the ways that became a standard in the industry is to use a defined list of User Agent strings.
+There's no reason to show a banner for a bot, right? It's pointless, waste of resources and money. Clients don't want to pay for that and our goal is to filter bots out. There are few ways to identify bot traffic. One of the ways that became a standard in the industry is to use a defined list of User Agent strings.
 
 Let's take a look at an example:
 
@@ -79,7 +79,7 @@ My browser's user agent string looks like this at the moment: `Mozilla/5.0 (Wind
 One of [the Google's crawlers](https://support.google.com/webmasters/answer/1061943) has the following user agent: `Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"` As you can see Google shares information on their bots and how to identify them.
 
 
-There are bot user agent lists available on the Internet for free. But... There's [The Interactive Advertising Bureau (IAB)](https://en.wikipedia.org/wiki/Interactive_Advertising_Bureau) which "is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry." They maintain [their own International Spiders and Bots List](http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/) (which costs... wait WHAT? $14000 for non-members??) The list "is required for compliance to the IAB’s Client Side Counting (CSC) Measurement Guidelines". Oh, everything fell into place. It seems that we don't have much choice here 😀
+There are bot user agent lists available on the Internet for free. But... There's [The Interactive Advertising Bureau (IAB)](https://en.wikipedia.org/wiki/Interactive_Advertising_Bureau) which "is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry." They maintain [their own International Spiders and Bots List](http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/) (which costs... wait WHAT? $14000 for non-members???) The list "is required for compliance to the IAB’s Client Side Counting (CSC) Measurement Guidelines". Oh, industry standards, everything fell into place. It seems that we don't have much choice here 😀
 
 The bot list contains a list of string tokens that we can find in user agent strings. There are hundreds of those tokens. The simplified version looks like this.
 
@@ -99,17 +99,22 @@ The feature is used in few high-load systems like [Real-time bidding](https://en
 
 
 
-### Measure, measure, measure!
+## Measure, measure, measure!
 
-"If you can not measure it, you can not improve it." Lord Kelvin
-Right measurement is hard!
+>"If you can not measure it, you can not improve it." Lord Kelvin
 
-Macro-benchmarks and metrics help you understand how your code works in production and on real data and real impact of your changes. I won't cover metrics here as they too application specific.
+That's basically all. Measurement is vital! It's difficult to add anything to that.
 
-Microbenchmarks - fast feedback, confidence. unit tests
+Measurement is hard! Variety of versions, libraries, languages, OSes, hardware and tools to measure only aggravate the situation.
+
+Essentially you are interested in two levels, let's call them macro and micro.
+
+On macro level, metrics and macro-benchmarks help you understand how your code works in production and on real data and show the real impact of changes.
+
+Microbenchmarks - are crucial. They provide fast feedback and increase confidence. They are like unit tests when performance is a feature.
 Microbenchmarking is hard!
 
-[DOs & DON'Ts from Microsoft:](https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/performance-guidelines.md#creating-a-microbenchmark)
+[Microbenchmarking DOs & DON'Ts from Microsoft:](https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/performance-guidelines.md#creating-a-microbenchmark)
 
 - **DO** use a microbenchmark when you have an isolated piece of code whose performance you want to analyze.
 - **DO NOT** use a microbenchmark for code that has non-deterministic dependences (e.g. network calls, file I/O etc.)
@@ -117,46 +122,43 @@ Microbenchmarking is hard!
 - **DO** run many iterations of the code in question to filter out noise.
 - **DO** minimize the effects of other applications on the performance of the microbenchmark by closing as many unnecessary applications as possible.
 
-You development pipeline looks like the following:
+Your development pipeline looks like the following:
+
 ```
-A feature -> C#
-C# + Compiler -> IL assembly
+A feature -> C# code
+C# code + Compiler -> IL assembly
 IL assembly + BCL + 3rdParty libs -> Application
 Application + CLR -> ASM
 ASM + CPU -> Result
 ```
 
-Infrastructure:
+And variety of implementations:
+
 ```
-OS: Windows, Linux, OS X
-Compilers: Legacy, Roslyn
+C# Compilers: Legacy, Roslyn
+IL Compilation: JIT, NGen, MPGO, .NET Native, LLVM
+JIT: Legacy x86 & x64, RyuJIT, Mono
 CLR: CLR2, CLR4, CoreCLR, Mono
-GC: Microsoft GC (different modes), Boehm, Sgen
-JIT: Legacy x86 & x64, RyuJIT, (Llvm MONO TODO)
-Compilation: JIT, NGen, MPGO, .NET Native
+GC: Microsoft GC (few modes), Boehm, Sgen
+OS: Windows, Linux, OS X
+Hardware: ...
 ```
 
-### First efficiency then performance
+## First efficiency then performance
 
-This is the most crucial aspect in all performance stories.
+This is the second most important aspect in all performance stories. Efficiency means how much work you need to do. Performance means how fast you do the work. The main goal is to reduce the amount of work to be done. And only then do it fast.
 
-Efficiency vs performance
-Efficiency means How much work you need to do?
-Performance means How fast you do the work (that you need to do)?
-
-The main goal is to reduce the amount of work to do. And only then do it fast.
-
-Commute: sport car vs bicycle
-Analogy
-Imagine I live in 10 kilometers from my office. I commute on a bicycle There's a direct I pedal at 20 km/h at average. I think I'm quite efficient because I choose the shortest route without many obstacles (traffic jams or lights). Am I fast? I doubt.
-
-I have a sport car which is quite fast. sends me through the nearest city and the route takes 100 kilometers. Am I efficient doing this? Of course no. But I'm god damn fast, the fastest on the road.
-
-pic
+![Indian Pacific Wheel Race]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/bicycle.jpg)
 
 
+The best analogy is commuting to work. I live in 10 km away from my office. I usually commute on a bicycle and choose the direct route without obstacles like traffic lights or traffic jams. I pedal at 20 km/h at average which takes me to the office in 30 minutes. I think I'm quite efficient because I choose the shortest route. But I can be faster of course.
 
-#### Algorithm:
+I have a car too. But GPS sends me on 20 km detour because of traffic jams on the main road. The average speed is low because of traffic. The parking isn't near the office. Yes, a car is obviously much faster than a bicycle. But because of the amount of work, it usually takes me more time to get to the office.
+
+TODO
+
+
+## Algorithm
 
 Following the main principle we think about efficiency first.
 
@@ -197,11 +199,9 @@ the only .NET implementation: https://www.informit.com/guides/content.aspx?g=dot
 
 
 
+## Tools
 
-
-### Tools:
-
-##### BenchmarkDotNet:
+### BenchmarkDotNet
 
 TODO pic with a bench?
 
@@ -228,7 +228,7 @@ More details on how does it work: http://benchmarkdotnet.org/HowItWorks.htm
 
 
 
-##### PerfView
+### PerfView
 
 TODO pic
 
@@ -241,7 +241,7 @@ https://github.com/Microsoft/perfview
 
 Video series: https://channel9.msdn.com/Series/PerfView-Tutorial
 
-##### Intel VTune Amplifier
+### Intel VTune Amplifier
 
 TODO pic
 
@@ -251,7 +251,7 @@ Awesome documentation.
 
 https://software.intel.com/en-us/intel-vtune-amplifier-xe
 
-#### ILSpy:
+### ILSpy:
 
 TODO pic
 
@@ -261,7 +261,7 @@ https://github.com/icsharpcode/ILSpy
 http://ilspy.net/
 TODO
 
-#### Assembly code:
+### Assembly code:
 
 How to get Assembly code
 
@@ -279,7 +279,7 @@ CLRMD https://github.com/Microsoft/clrmd/blob/master/Documentation/MachineCode.m
 
 Task: Sources
 
-### Optimizations!!!
+## Optimizations
 
 ### Measurement
 
