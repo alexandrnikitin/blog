@@ -12,9 +12,7 @@ share: true
 
 ### TL;DR
 
-This post is based on a real-world feature that is used under high-load scenarios. The post walks through a series of various performance optimization steps, from BCL API usage to advanced data structures, from bit twiddling hacks to SIMD instructions. It also covers tools that I usually use to analyze code.
-
-### Content
+This post is based on a real-world feature that is used under high-load scenarios. The post walks through a series of various performance optimization steps, from BCL API usage to "advanced" data structures, from bit twiddling hacks to addressing CPU cache misses. It also covers tools I usually use to analyze code.
 
 If you find it interesting you can continue reading or jump to any of the sections:
 
@@ -29,18 +27,15 @@ If you find it interesting you can continue reading or jump to any of the sectio
   - WinDBG
   - PerfView
   - Intel VTune Amplifier
-TODO PCM Tools??
-
+  - TODO PCM Tools??
 - Algorithm
 - Optimizations
   - API
   - TODO
 
-
-
 ### Intro:
 
-I work for an advertising technology company (yeah, this is all about banners at the end, I'm sorry for this 😞) and we have a feature that identifies and filters out unwanted bot traffic. In this post we discover the domains area, algorithm used and its original implementation.
+ and we have a feature that identifies and filters unwanted bot traffic. In this post we explore the domains area, the algorithm used and its original implementation.
 
  It’s backed by the Aho–Corasick algorithm, a string searching algorithm that matches all strings simultaneously.
 TODO
@@ -58,44 +53,35 @@ I
 
 ### Domain:
 
+I work for an advertising technology company. The comics shows the lowdown:
 ![About code purpose!]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/about-code-purpose.jpg)
 
-(sigh) Yes, this is all about banners.
+It's a bit exaggerated but... (sigh) yes, this is all about banners at the end, I'm sorry for this 😞 Back to the domain.
 
-
-All websites receive bot traffic! Not a surprise, right? There [were quite](https://www.incapsula.com/blog/bot-traffic-report-2016.html) a [few](http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic) studies from all sides of the advertising business. Commercials tend to reduce the numbers, for obvious reasons, banner impression or click = money. Academics in their turn increase numbers and spread panic, that's the goal of the research after all. I think truth is somewhere in the middle.
-
-[The one from Incapsula](https://www.incapsula.com/blog/bot-traffic-report-2016.html) shows that websites receive 50% of bot traffic in average.
-
-A study shows that bots drive 16% of Internet traffic in the US, in Singapore this number reaches 56%.
-Source http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic
+All websites receive bot traffic! Not a surprise, right? There were quite a few studies from all sides of the advertising business. For instance, [the one from Incapsula](https://www.incapsula.com/blog/bot-traffic-report-2016.html) shows that websites receive 50% of bot traffic in average. [Another one from Solve Media](http://news.solvemedia.com/post/32450539468/solve-media-the-bot-stops-here-infographic) shows that bots drive 16% of Internet traffic in the US, this number reaches 56% in Singapore. In general, commercials tend to reduce the numbers, for obvious reasons - banner impression or click = money. Academics and not so involved parties, in their turn, increase numbers and spread panic, that's the goal of a research after all. I think truth is somewhere in the middle.
 
 But, surprisingly, not all bots are bad, and some of them are even vital for the Internet. The classification could look like this:
-- White bots (good) - various search engines bots (Google, Bing, [DuckDuckGo](https://duckduckgo.com/)). They are crucial, that's how we discover things on the Internet. They respect and follow [the robots exclusion protocol (robot.txt)](https://en.wikipedia.org/wiki/Robots_exclusion_standard), aware of the Robots HTML <META> tag. That's the most important is that they clearly identify themselves by providing User Agent and IP address lists.
-- Grey bots (neutral) - feed fetchers, crawlers and scrappers. The are similar to the white bots. They don't bring users/clients/money directly, but generate load. They may or may not identify themselves, may or may not follow the robots protocol.
-- Black bots (bad) - fraud, intentional impersonation for profit. They imitate user behavior to get fake impression, clicks, etc.
 
+- **White bots** (good) - various search engines bots like Google, Bing or [DuckDuckGo](https://duckduckgo.com/). They are crucial, that's how we all discover things on the Internet. They respect and follow [the robots exclusion protocol (robot.txt)](https://en.wikipedia.org/wiki/Robots_exclusion_standard), aware of [the Robots HTML \<META\> tag](https://www.w3.org/TR/html401/appendix/notes.html#h-B.4.1.2). What's the most important is that they clearly identify themselves by providing User Agent and IP addresses lists.
 
-There's no reason to show a banner for a bot, right? It's pointless, waste of resources and money. And clients don't want to pay for that. The goal is to filter them out.
+- **Grey bots** (neutral) - feed fetchers, website crawlers and data scrappers. They are similar to the white bots. Except they usually don't bring users/clients/money directly, but generate additional load. They may or may not identify themselves, may or may not follow the robots protocol.
 
-I won't cover the black bots because it a separate huge area with sophisticated analysis and ML algorithms.
-We will focus on the white and grey bots that identify themselves as such.
-List of IP addresses and User Agent strings.
-There are few ways to identify the bot traffic. One of the ways that became a standard in the industry is to use a defined list of
-How to identify them?
+- **Black bots** (harmful) - fraud and criminal activity, intentional impersonation for profit. They imitate user behavior to get fake impression, clicks, etc.
+
+We won't cover black bots because it is a huge topic with sophisticated analysis and Machine learning algorithms. We will focus on the white and grey bots that identify themselves as such.
+
+There's no reason to show a banner for a bot, right? It's pointless, waste of resources and money. And clients don't want to pay for that and our goal is to filter them out. There are few ways to identify bot traffic. One of the ways that became a standard in the industry is to use a defined list of User Agent strings.
 
 Let's take a look at an example:
 
-My user agent looks like this at the moment "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36"
+My browser's user agent string looks like this at the moment: `Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36`
 
-One of [the Google's crawlers](https://support.google.com/webmasters/answer/1061943) has the following user agent: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+One of [the Google's crawlers](https://support.google.com/webmasters/answer/1061943) has the following user agent: `Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"` As you can see Google shares information on their bots and how to identify them.
 
 
-There are quite a few bot User Agent lists available on the Internet for free. But... There's [The Interactive Advertising Bureau (IAB)](https://en.wikipedia.org/wiki/Interactive_Advertising_Bureau) which "is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry."
+There are bot user agent lists available on the Internet for free. But... There's [The Interactive Advertising Bureau (IAB)](https://en.wikipedia.org/wiki/Interactive_Advertising_Bureau) which "is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry." They maintain [their own International Spiders and Bots List](http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/) (which costs... wait WHAT? $14000 for non-members??) The list "is required for compliance to the IAB’s Client Side Counting (CSC) Measurement Guidelines". Oh, everything fell into place. It seems that we don't have much choice here 😀
 
-They maintain ["the only right and thorough list of bots"](http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/) (which costs $14000 for non-members)  The list is required for compliance to ~~bla-bla-bla~~ their own standards. It seems that we don't have much choice here.
-
-The list contains a list of tokens that we can find in user agent strings. The simplified version looks like this. There are hundreds of those tokens.
+The bot list contains a list of string tokens that we can find in user agent strings. There are hundreds of those tokens. The simplified version looks like this.
 
 ```
 googlebot
@@ -107,14 +93,11 @@ yandex
 ...
 ```
 
-What we need is to find all those token in a user agent and, if there's a match, filter out the request if it comes from a bot.
+What we need is to find any of those tokens in a user agent and, if there's a match, filter the request out as it comes from a bot.
 
-https://gitz.adform.com/marius.kazlauskas/serving/blob/master/Adform.AdServing.Lib/Resources/IAB/exclude.txt
-
-The feature is used in few high-load applications like DSP and AdServing.
+The feature is used in few high-load systems like [Real-time bidding](https://en.wikipedia.org/wiki/Real-time_bidding), [Ad serving](https://en.wikipedia.org/wiki/Ad_serving), etc. This is all about. banners (sigh).
 
 
-Yeah, it's all about banners.
 
 ### Measure, measure, measure!
 
@@ -669,40 +652,27 @@ Now we came to the point where microbenchmarking doesn't show us the real pictur
 And it's quite difficult if not impossible to measure changes and their impact.
 The only CPU hardware counters. We identified the bottleneck as LLC misses. We are going to monitor only this counter via VTune Amplifier Custom analysis.
 
+Array pointer will still point somewhere in the heap. TODO
+
+Unsafe ins the only
+
+We managed to reduce number of LLC misses by 3 times. Which is great!
 
 
-#### Analyze data
+
+
+#### Summary
+
 TODO
-ASCII with some special symbols. Hashing is not needed.
-
-```
-Method |        Mean |    StdDev | Scaled | Scaled-StdDev |
-------------- |------------ |---------- |------- |-------------- |
-  Test | 451.1660 ns | 2.0661 ns |   1.00 |          0.00 |
-TestImproved | 287.9745 ns | 2.5764 ns |   0.64 |          0.01 |
-```
+We improved by bla-bla-bla.
 
 
-#### Lesson: Going unsafe
-"All is Fair in Love and War"
+"If you can not measure it, you can not improve it." Lord Kelvin
 
+We are at the point when it's impossible to reliably benchmark the code and it's quite difficult to profile it and measure the impact of changes.
+All further optimization steps should be focused on reducing LLC misses and can include compacting the array size, generating the perfect hash function,
+TODO [prefetch ](https://github.com/dotnet/coreclr/issues/5025)
 
-#### Lesson 7: Loop unrolling
-???
+Or we came to the point where we have to re-iterate and think about efficiency again.
 
-
-
-#### MOAR
-Reconstruct array with data based on real production load.
-
-
-TODO NUMA?
-
-###
-
-* .NET vs JVM vs C++ vs ...
-* In 99% cases the bottleneck is a developer not a platform
-
-
-### Experiments
-#### .NET Core
+In 99% cases the bottleneck is a developer not a platform
