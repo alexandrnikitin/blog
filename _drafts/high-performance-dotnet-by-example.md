@@ -185,67 +185,42 @@ You can play with [the animated version of the algorithm here.](http://blog.ivan
 
 ## Tools
 
-### BenchmarkDotNet
+## BenchmarkDotNet
 
-TODO pic with a bench?
+![BenchmarkDotNet]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/BenchmarkDotNet.png)
 
-http://benchmarkdotnet.org/
-https://github.com/PerfDotNet/BenchmarkDotNet
-FOSS
+BenchmarkDotNet is a powerful FOSS .NET library for benchmarking. It is like NUnit for unit tests, it provides fast feedback for code changes. I believe that it's a must to have it in your solution even if you don't write high-performance code.
 
-"Benchmarking is really hard (especially microbenchmarking)" and BenchmarkDotNet is here to help us. Harness.
+"Benchmarking is really hard (especially microbenchmarking), you can easily make a mistake during performance measurements. BenchmarkDotNet will protect you from the common pitfalls..." It supports Full .NET Framework, .NET Core, Mono, x86, x64, LegacyJit and RuyJIT, and works on Windows, Linux, MacOS. It has some useful diagnosers based on ETW events like GC and Memory allocation, JIT Inlining and even [some hardware counters.](http://adamsitnik.com/Hardware-Counters-Diagnoser/)
 
-It supported Full .NET Framework, .NET Core, Mono and works on Windows, Linux, MacOS.
-x86, x64
-LegacyJit and RuyJIT
+You can find documentation and how to use it [on its website](http://benchmarkdotnet.org/), review, star or even contribute [on github.](https://github.com/PerfDotNet/BenchmarkDotNet)
 
 
-Like unit tests, fast feedback.
+## PerfView
+
+![PerfView]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/perfview.PNG)
+
+PerfView is a general purpose performance-analysis tool for .NET.
+It's like a Swiss army knife and can do many things, from CPU and Memory profiling to heap dump analysis, from capturing ETW events to hardware counters like CPU cache misses, branch mispredictions, etc. It has an ugly interface but after few ~~days~~ weeks you will find it functional. I believe that PerfView is a great tool to have in your tool belt. It's FOSS with [the sources hosted on github.](https://github.com/Microsoft/perfview)
+
+## Intel VTune Amplifier
+
+![Intel VTune Amplifier]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/IntelVTune.png)
+
+Intel VTune Amplifier is a commercial application for software performance analysis. It supports many programming languages including C#. In my opinion, it's the best tool for the low level performance analysis on the market. It shows not only what code CPU executes but **how** it does that. It answers not only how long CPU executes a piece of code but **why** it takes that much time. It exposes hundreds of **hardware** counters and registers. It has low overhead hence. You can read about it on [the Intel website](https://software.intel.com/en-us/intel-vtune-amplifier-xe) BTW, VTune Amplifier has pretty good documentation and explanation for all major counters.
 
 
-Diagnosers
+## ILSpy
 
-Creates an isolated project per benchmark based on templates.
-It supports various reporting formats such as markdown, csv, html, plain text, png plots.
+![ILSpy]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/ILSpy.png)
 
-More details on how does it work: http://benchmarkdotnet.org/HowItWorks.htm
-
-
-
-### PerfView
-
-TODO pic
-
-Free, can do a lot.
-PerfView is a general purpose performance-analysis tool for .NET that's like a Swiss army knife. It can do many things. PerfView is a must to have in your tool belt.
-
-CPU profiling, Memory profiling and heap dumps analysis, capturing ETW events, it supports even most important hardware counters like Cache misses, branch mispredictions, instructions retired.
-
-https://github.com/Microsoft/perfview
-
-Video series: https://channel9.msdn.com/Series/PerfView-Tutorial
-
-### Intel VTune Amplifier
-
-TODO pic
-
-Intel VTune Amplifier is a commercial application for software performance analysis. It supports many programming languages including C#. In my opinion, it's the best tool for low level performance analysis on the market. It shows not only what and how long CPU executes a piece of code but **how** CPU executes that. It exposes hundreds if not thousands of **hardware** counters and registers. It has low overhead hence. It's not so usable for general application development as it's too low level. Tools like PerfView show better overview.
-
-Awesome documentation.
-
-https://software.intel.com/en-us/intel-vtune-amplifier-xe
-
-### ILSpy:
-
-TODO pic
-
-The best FOSS and easy to use .NET decompiler.
+ILSpy is a FOSS tool for decompiler and browsing .NET assemblies. It is very useful
 
 https://github.com/icsharpcode/ILSpy
-http://ilspy.net/
+Website: http://ilspy.net/
 TODO
 
-### Assembly code:
+### WinDbg
 
 How to get Assembly code
 
