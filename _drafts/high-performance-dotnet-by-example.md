@@ -33,6 +33,8 @@ If you find it interesting you can continue reading or jump to any of the sectio
   - API
   - TODO
 
+
+
 ### Intro:
 
  and we have a feature that identifies and filters unwanted bot traffic. In this post we explore the domains area, the algorithm used and its original implementation.
@@ -49,7 +51,7 @@ This post isn't about .NET vs JVM vs C++ vs... I won't praise .NET as being awes
 
 This story is about pure performance optimizations based on a real-world case. Step by step we'll improve performance of one production feature.
 
-I
+
 
 ## Domain:
 
@@ -160,42 +162,24 @@ TODO
 
 ## Algorithm
 
-Following the main principle we think about efficiency first.
+Following the first principle, we think about efficiency first. Our goal is to check whether a user agent string contains any of the given tokens. We have several hundred tokens. We perform the check once per network request. We don't need to find TODO Basically, omitting all unnecessary details, our problem comes down to the multiple string matching problem.
 
-Multiple string matching is an important problem in many application areas
-of computer science. For example, in computational biology, with the availability
-of large amounts of DNA data, matching of nucleotide sequences has become an
-important application and there is an increasing demand for fast computer methods
-for analysis and data retrieval. Similarly, in metagenomics [22], we have a set
-of patterns which are the extracted DNA fragments of some species, and would
-like to check if they exist in another living organism. Another important usage
-of multiple pattern matching algorithms appears in network intrusion detection
-systems as well as in anti-virus software, where such systems should check an
-increasing number of malicious patterns on disks or high–speed network traffic.
-The common properties of systems demanding for multi–pattern matching is
-ever increasing size of both the sets and pattern lengths. Hence, searching of
-multiple long strings over a sequence is becoming a more significant problem.
+Multiple string/ pattern matching problem is an important problem in many areas of computer science. For example, spam detection, filtering spam based on the content of the email, detecting keywords, is a very popular technique.
+Another applications is plagiarism detection, using pattern matching algorithms we can compare texts and detect similarities between them. An important usage appears in biology and bioinformatics area, matching of nucleotide sequences in DNA is an important application of multiple pattern matching algorithms. There's application in network intrusion detection systems and anti-virus software, such systems should check network traffic and disks content against large amount of malicious patterns.
 
+There are [several string searching algorithms](https://en.wikipedia.org/wiki/String_searching_algorithm) and few of them with a finite set of patterns. The most suitable for our needs is [Aho–Corasick algorithm.](https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm) It was invented by Alfred V. Aho and Margaret J. Corasick in 1975.
 
+Key features of the Aho–Corasick algorithm:
 
-https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm
-a string searching algorithm
-accepts a finite set of strings we want to find
-it matches all strings simultaneously
-backed by a trie
-additional "failure" collections between nodes
+- a pattern matching algorithm
+- accepts a finite set of patterns
+- matches all patterns simultaneously
+- constructs a finite state machine from patterns backed by [a Trie](https://en.wikipedia.org/wiki/Trie)
+- additional "failure" links between nodes that allows to continue traversal in case of match failure
 
-Grep
+The algorithm was used in the `fgrep` utility (an early version of `grep`)
 
-Animated:
-http://blog.ivank.net/aho-corasick-algorithm-in-as3.html
-
-
-TODO: http://www.cs.uku.fi/~kilpelai/BSA05/lectures/slides04.pdf
-TODO: https://www.quora.com/What-is-the-most-intuitive-explanation-of-the-Aho-Corasick-string-matching-algorithm
-
-
-the only .NET implementation: https://www.informit.com/guides/content.aspx?g=dotnet&seqNum=769
+You can play with [the animated version of the algorithm here.](http://blog.ivank.net/aho-corasick-algorithm-in-as3.html)
 
 
 
