@@ -150,7 +150,7 @@ Hardware: ...
 
 This is the second most important aspect in all performance stories. Efficiency means how much work you need to do. Performance means how fast you do the work. The main goal is to reduce the amount of work to be done. And only then do it fast.
 
-![Indian Pacific Wheel Race]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/bicycle.jpg)
+![Indian Pacific Wheel Race]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Bicycle.jpg)
 
 
 The best analogy is commuting to work. I live in 10 km away from my office. I usually commute on a bicycle and choose the direct route without obstacles like traffic lights or traffic jams. I pedal at 20 km/h at average which takes me to the office in 30 minutes. I think I'm quite efficient because I choose the shortest route. But I can be faster of course.
@@ -165,7 +165,7 @@ TODO
 Following the first principle, we think about efficiency first. Our goal is to check whether a user agent string contains any of the given tokens. We have several hundred tokens. We perform the check once per network request. We don't need to find TODO Basically, omitting all unnecessary details, our problem comes down to the multiple string matching problem.
 
 Multiple string/ pattern matching problem is an important problem in many areas of computer science. For example, spam detection, filtering spam based on the content of the email, detecting keywords, is a very popular technique.
-Another applications is plagiarism detection, using pattern matching algorithms we can compare texts and detect similarities between them. An important usage appears in biology and bioinformatics area, matching of nucleotide sequences in DNA is an important application of multiple pattern matching algorithms. There's application in network intrusion detection systems and anti-virus software, such systems should check network traffic and disks content against large amount of malicious patterns.
+Another applications is plagiarism detection, using pattern matching algorithms we can compare texts and detect similarities between them. An important usage appears in biology and bioinformatics area, matching of nucleotide sequences in DNA is an important application of multiple pattern matching algorithms. There's application in network intrusion detection systems and anti-virus software, such systems should check network traffic and disks content against large amount of malicious patterns. Aaaand we have banners...
 
 There are [several string searching algorithms](https://en.wikipedia.org/wiki/String_searching_algorithm) and few of them with a finite set of patterns. The most suitable for our needs is [Aho–Corasick algorithm.](https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm) It was invented by Alfred V. Aho and Margaret J. Corasick in 1975.
 
@@ -198,7 +198,7 @@ You can find documentation and how to use it [on its website](http://benchmarkdo
 
 ## PerfView
 
-![PerfView]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/perfview.PNG)
+![PerfView]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/PerfView.png)
 
 PerfView is a general purpose performance-analysis tool for .NET.
 It's like a Swiss army knife and can do many things, from CPU and Memory profiling to heap dump analysis, from capturing ETW events to hardware counters like CPU cache misses, branch mispredictions, etc. It has an ugly interface but after few ~~days~~ weeks you will find it functional. I believe that PerfView is a great tool to have in your tool belt. It's FOSS with [the sources hosted on github.](https://github.com/Microsoft/perfview)
@@ -218,34 +218,77 @@ ILSpy is a FOSS tool for decompiler and browsing .NET assemblies. It is very use
 
 https://github.com/icsharpcode/ILSpy
 Website: http://ilspy.net/
+
 TODO
 
 ### WinDbg
 
-How to get Assembly code
+![WinDbg]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/WinDbg.png)
 
-Visual Studio
-TODO options
+WinDbg - the great and powerful! It is a powerful debugging and exploring tool for Windows. It can be used to debug user applications, device drivers, and the operating system itself. I use it to get assembly code and CLR internals, analyze process dumps or debug an ugly problem.
 
-Windbg - the great and powerful
-SOS Sun of Strike : https://msdn.microsoft.com/en-us/library/bb190764(v=vs.110).aspx
-SOSex: http://www.stevestechspot.com/default.aspx
+There are few extensions to help us with that:
+
+- SOS (Sun of Strike): provides information about the internal (CLR) environment. https://msdn.microsoft.com/en-us/library/bb190764(v=vs.110).aspx SOS is distributed with the .NET Framework
+- SOSex: by Steve Johnson http://www.stevestechspot.com/default.aspx
+- WinDbgCs https://github.com/southpolenator/WinDbgCs
+This is an interesting option to execute C# scripts inside WinDbg and automate some analysis.
+
 HOWTO: Debugging .NET with WinDbg https://docs.google.com/document/d/1yMQ8NAQZEBtsfVp7AsFLSA_MkIKlYNuSowG72_nU0ek
-WinDbgCs https://github.com/southpolenator/WinDbgCs
 
-TODO
-CLRMD https://github.com/Microsoft/clrmd/blob/master/Documentation/MachineCode.md
+## Performance optimizations
 
-Task: Sources
+To be fair, the feature and algorithm were implemented by another developer. My interest in this case lies in the field of performance optimizations.
 
-## Optimizations
+You can find [the algorithm code in this gist](https://gist.github.com/alexandrnikitin/e4176d6b472b39155a7e0e5d68264e65)
+
+In short, Trie based on Dictionary
 
 ### Measurement
 
-Create a benchmark for quick feedback
+Following the main principle, we want to
+Let's create a simple benchmark using BenchmarkDotNet library.
+WHich is as simple as Installing the library via NuGet and placing `[Benchmark]` attribute on the test method.
+
+```
+public class ManyKeywordsBenchmark
+{
+    private const string UserAgent = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36";
+
+    private readonly AhoCorasickTreeBaseline _treeBaseline;
+
+    public ManyKeywordsBenchmark()
+    {
+        var keywords = ResourcesUtils.GetKeywords().ToArray();
+        _treeBaseline = new AhoCorasickTreeBaseline(keywords);
+    }
+
+    [Benchmark(Baseline = true)]
+    public bool Baseline()
+    {
+        return _treeBaseline.Contains(UserAgent);
+    }
+}
+```
 TODO
 
-Is good enough.
+
+``` ini
+BenchmarkDotNet=v0.10.3.0, OS=Microsoft Windows NT 6.2.9200.0
+Processor=Intel(R) Core(TM) i7-4600U CPU 2.10GHz, ProcessorCount=4
+Frequency=2630635 Hz, Resolution=380.1364 ns, Timer=TSC
+  [Host]     : Clr 4.0.30319.42000, 64bit RyuJIT-v4.6.1637.0
+  Job-ECROUK : Clr 4.0.30319.42000, 64bit RyuJIT-v4.6.1637.0
+
+Jit=RyuJit  Platform=X64  LaunchCount=5  
+TargetCount=20  WarmupCount=20  
+```
+
+|   Method |      Mean |    StdDev |
+|--------- |---------- |---------- |
+| Baseline | 6.8309 us | 0.0369 us |
+
+This is ~7 microsecond per call. It means that we can do ~150K call per second on one CPU Core. It's pretty fast and good enough. But can we do better?
 
 #### Know APIs of libraries you use!
 
