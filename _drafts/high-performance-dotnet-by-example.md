@@ -157,7 +157,7 @@ The best analogy is commuting to work. I live in 10 km away from my office. I us
 
 I have a car too. But GPS sends me on 20 km detour because of traffic jams on the main road. The average speed is low because of traffic. The parking isn't near the office. Yes, a car is obviously much faster than a bicycle. But because of the amount of work, it usually takes me more time to get to the office.
 
-TODO
+TODO Tradeoffs?
 
 
 ## Algorithm
@@ -214,9 +214,10 @@ Intel VTune Amplifier is a commercial application for software performance analy
 
 ![ILSpy]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/ILSpy.png)
 
-ILSpy is a FOSS tool for decompiler and browsing .NET assemblies. It is very useful
+"ILSpy is the open-source .NET assembly browser and decompiler." It is very useful
 
-https://github.com/icsharpcode/ILSpy
+It's FOSS with [the sources hosted on github.](https://github.com/icsharpcode/ILSpy)
+
 Website: http://ilspy.net/
 
 TODO
@@ -234,11 +235,11 @@ There are few extensions to help us with that:
 - WinDbgCs https://github.com/southpolenator/WinDbgCs
 This is an interesting option to execute C# scripts inside WinDbg and automate some analysis.
 
-HOWTO: Debugging .NET with WinDbg https://docs.google.com/document/d/1yMQ8NAQZEBtsfVp7AsFLSA_MkIKlYNuSowG72_nU0ek
+I find [the "Debugging .NET with WinDbg"](https://docs.google.com/document/d/1yMQ8NAQZEBtsfVp7AsFLSA_MkIKlYNuSowG72_nU0ek) document by [Sebastian Solnica](https://twitter.com/lowleveldesign) concise and good as an intro and a reference book.
 
 ## Performance optimizations
 
-To be fair, the feature and algorithm were implemented by another developer. My interest in this case lies in the field of performance optimizations.
+To be fair, the feature and algorithm were implemented by another developer. My interest in this case lies mostly in the performance optimizations.
 
 You can find [the algorithm code in this gist](https://gist.github.com/alexandrnikitin/e4176d6b472b39155a7e0e5d68264e65)
 
@@ -246,31 +247,30 @@ In short, Trie based on Dictionary
 
 ### Measurement
 
-Following the main principle, we want to
-Let's create a simple benchmark using BenchmarkDotNet library.
-WHich is as simple as Installing the library via NuGet and placing `[Benchmark]` attribute on the test method.
+Following the main principle, we want to have a reliable way to measure the performance and further code changes. BenchmarkDotNet will help us with that, it is as simple as installing the library via NuGet, creating a test method with a `[Benchmark]` attribute.
+
+A simple benchmark could looks like this:
 
 ```
-public class ManyKeywordsBenchmark
+public class ManyKeywordsBenchmarkSimple
 {
     private const string UserAgent = "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36";
-
-    private readonly AhoCorasickTreeBaseline _treeBaseline;
-
-    public ManyKeywordsBenchmark()
+    private readonly AhoCorasickTree _tree;
+    public ManyKeywordsBenchmarkSimple()
     {
         var keywords = ResourcesUtils.GetKeywords().ToArray();
-        _treeBaseline = new AhoCorasickTreeBaseline(keywords);
+        _tree = new AhoCorasickTree(keywords);
     }
 
-    [Benchmark(Baseline = true)]
+    [Benchmark]
     public bool Baseline()
     {
-        return _treeBaseline.Contains(UserAgent);
+        return _tree.Contains(UserAgent);
     }
 }
 ```
-TODO
+
+And the results:
 
 
 ``` ini
@@ -284,15 +284,17 @@ Jit=RyuJit  Platform=X64  LaunchCount=5
 TargetCount=20  WarmupCount=20  
 ```
 
-|   Method |      Mean |    StdDev |
-|--------- |---------- |---------- |
-| Baseline | 6.8309 us | 0.0369 us |
+|  Method |      Mean |    StdDev |
+|-------- |---------- |---------- |
+| Control | 6.1364 us | 0.0314 us |
 
-This is ~7 microsecond per call. It means that we can do ~150K call per second on one CPU Core. It's pretty fast and good enough. But can we do better?
+This is less than 7 microsecond per execution. It means that we can do ~150K call per second on one CPU Core. It's pretty fast and good enough. But can we do better?
 
-#### Know APIs of libraries you use!
+### Know APIs of libraries you use!
 
-```
+Let's quickly review the code. We have the `AhoCorasickTree` class that contains logic on how to build itself and traverse/ search for patterns. The tree class consists of `AhoCorasickTreeNode` nodes. The `AhoCorasickTreeNode` class backed by `Dictionary<char, AhoCorasickTreeNode>` for prefix keys and further traversal, it stores its results in `List<string>`. If we take a look at the code that check the existence of the given prefix then we find the following code:
+
+```csharp
 public AhoCorasickTreeNode GetTransition(char c)
 {
     return _transitionsDictionary.ContainsKey(c)
@@ -301,8 +303,9 @@ public AhoCorasickTreeNode GetTransition(char c)
 }
 ```
 
+We have two calls to the dictionary in the hot path: one to check whether the dictionary has the key or not, and then we get the next node. But we know that there's a method that can do both at once - `bool TryGetValue(TKey key, out TValue value)`. Let's fix that:
 
-```
+```csharp
 public AhoCorasickTreeNode GetTransition(char c)
 {
     _transitionsDictionary.TryGetValue(c, out AhoCorasickTreeNode node);
@@ -310,51 +313,35 @@ public AhoCorasickTreeNode GetTransition(char c)
 }
 ```
 
-Results:
+And the results:
 
-```
-// * Summary *
-
-BenchmarkDotNet=v0.10.3.0, OS=Microsoft Windows NT 6.2.9200.0
-Processor=Intel(R) Core(TM) i7-4600U CPU 2.10GHz, ProcessorCount=4
-Frequency=2630627 Hz, Resolution=380.1375 ns, Timer=TSC
-  [Host]     : Clr 4.0.30319.42000, 64bit RyuJIT-v4.6.1637.0
-  Job-TTMHSM : Clr 4.0.30319.42000, 64bit RyuJIT-v4.6.1637.0
-
-Jit=RyuJit  LaunchCount=3  TargetCount=10
-WarmupCount=10
-
-       Method |      Mean |    StdDev | Scaled | Scaled-StdDev |
-------------- |---------- |---------- |------- |-------------- |
-         Test | 6.3114 us | 0.0530 us |   1.00 |          0.00 |
- TestImproved | 5.7869 us | 0.0584 us |   0.92 |          0.01 |
-```
-
-Great, almost 10% of improvement just using proper API methods.
-
-Lesson learnt: know APIs of libraries you use.
-
-TODO
-
-#### Know CLR internals
-
-Fire PerfView
-Allocations
+|    Method |      Mean |    StdDev |    Median | Scaled | Scaled-StdDev |
+|---------- |---------- |---------- |---------- |------- |-------------- |
+|   Control | 6.1577 us | 0.0523 us | 6.1466 us |   1.00 |          0.00 |
+| Treatment | 5.8706 us | 0.0432 us | 5.8850 us |   0.95 |          0.01 |
 
 
-Enumerator? Wait what?
+Not so bad, almost 5% improvement just using proper API methods. Lesson learnt: know APIs of libraries you use. Let's move to profiling.
 
+### Know CLR internals
 
-If we take a look at the allocation stacktrace:
-```
-```
+Let's start from a high-level analysis and try to understand how the code performs. PerfView is the best tool for the general purpose analysis. What we need is to create an isolated console application that executes the code in a loop with close to production usage. Let's launch PerfView and profile the application using it.
 
+PerfView shows a lot of useful .NET related (and not only) information. For example JIT and GC stats. For instance, we can take a look at the activity of the GC in the "GCStats" view under the "Memory Group" folder. If we open the view for our application it shows us that the GC is pretty busy allocating and cleaning garbage up:
 
-```
+![Allocations]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Allocations.png)
+
+Hmmm... That's not what I would expect. We prebuilt a Trie  TODO
+Why would we ever need to allocate anything just to traverse the tree?? Luckily PerfView is able to trace allocation object stack traces. Let's enable the ".NET SampleAlloc" option and switch to the "GC Heap Net Mem stacks" view. If we take a look at the allocation stacktrace:
+
+![AllocationStack]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/AllocationStack.png)
+
+We find that we allocate an instance of `Enumerator[String]` class which is `List<String>.Enumerator` in our case. What? We all know that List's enumerator is a `struct`. How is that possible to have a struct on the heap? Let's go up the stack and find that out. The `Any<T>` IEnumerable extension:
+
+```csharp
 public static bool Any<TSource>(this IEnumerable<TSource> source)
 {
-  if (source == null)
-    throw Error.ArgumentNull("source");
+  ...
   using (IEnumerator<TSource> enumerator = source.GetEnumerator())
   {
     if (enumerator.MoveNext())
@@ -364,58 +351,61 @@ public static bool Any<TSource>(this IEnumerable<TSource> source)
 }
 ```
 
-GetEnumerator() implementation
+Here we call the IEnumerable<TSource>'s `GetEnumerator()` method to get an enumerator. The List's `GetEnumerator()` implementation:
 
+```csharp
+IEnumerator<T> IEnumerable<T>.GetEnumerator()
+{
+  return (IEnumerator<T>) new List<T>.Enumerator(this);
+}
+```
 
-ILSpy will help us here
+We create an instance of the Enumerator struct, cast it to an interface and return it as an interface. To make it more clearer we need to
+ILSpy will help us here. Let's launch ILSpy and review the IL code:
 
 ```
 .method private final hidebysig newslot virtual
 	instance class System.Collections.Generic.IEnumerator`1<!T> 'System.Collections.Generic.IEnumerable<T>.GetEnumerator' () cil managed
 {
-	.custom instance void __DynamicallyInvokableAttribute::.ctor() = (
-		01 00 00 00
-	)
-	.override method instance class System.Collections.Generic.IEnumerator`1<!0> class System.Collections.Generic.IEnumerable`1<!T>::GetEnumerator()
-	// Method begins at RVA 0xd3f33
-	// Code size 12 (0xc)
-	.maxstack 8
-
-	IL_0000: ldarg.0
-	IL_0001: newobj instance void valuetype System.Collections.Generic.List`1/Enumerator<!T>::.ctor(class System.Collections.Generic.List`1<!0>)
-	IL_0006: box valuetype System.Collections.Generic.List`1/Enumerator<!T>
-	IL_000b: ret
-} // end of method List`1::'System.Collections.Generic.IEnumerable<T>.GetEnumerator'
+...
+    IL_0000: ldarg.0
+    IL_0001: newobj instance void valuetype System.Collections.Generic.List`1/Enumerator<!T>::.ctor(class System.Collections.Generic.List`1<!0>)
+=>  IL_0006: box valuetype System.Collections.Generic.List`1/Enumerator<!T>
+    IL_000b: ret
+}
 ```
 
-Call to interface method happen via MethodTable structure.
+Indeed we clearly see the `box`ing operation. The reason for the boxing is that calls to interface methods happen via [a Virtual Method Table](https://en.wikipedia.org/wiki/Virtual_method_table). A value type doesn't have a virtual method table and to obtain one it has to become a reference type with all consequences.
 
-Struct as interface, no MethodTable they need to be wrapped into object layout which is header, MethodTable, data...
-
-Get rid of IEnumerable<T> for List<T> and check for `Count > 0` instead of Any()
+Knowing that fact, the fix is quite easy, let's get rid of `IEnumerable<T>` for `List<T>` and check for `Count > 0` instead of `Any()`.
 
 ```
-Method |      Mean |    StdDev | Scaled | Scaled-StdDev |
-------------- |---------- |---------- |------- |-------------- |
-  Test | 5.8257 us | 0.0527 us |   1.00 |          0.00 |
-TestImproved | 2.7908 us | 0.0387 us |   0.48 |          0.01 |
+|    Method |      Mean |    StdDev |    Median | Scaled | Scaled-StdDev |
+|---------- |---------- |---------- |---------- |------- |-------------- |
+|   Control | 5.7016 us | 0.0669 us | 5.6759 us |   1.00 |          0.00 |
+| Treatment | 2.8440 us | 0.0357 us | 2.8433 us |   0.50 |          0.01 |
 ```
 
-Wow, 2x improvement just joggling .NET internals methods. Can we do faster?
+Wow, that's 2 times faster! We achieved that just joggling .NET internals.
+Lesson learnt: know .NET internals.
 
 
-#### Know Basic data structures
+### Know Basic data structures
 
-Fire PerfView and find the bottleneck.
+Now it's time to find the bottleneck of the code. Let's launch PerfView again and profile the application. At this time we are interested in the "CPU Stacks" view:
 
-TODO pic from PerfView
+![BottleneckDictionary]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/BottleneckDictionary.png)
 
 
-```
+PerfView shows that the bottleneck is in the BCL `Dictionary`. This will stop most developers from further optimizations. Dictionary (a hash table) is an awesome data structure. It's generic, it's fast enough, it's efficient memory-wise. It was bestowed upon us from above.
+
+But, out of curiosity, let's take a look how it work under the hood.
+The `TryGetValue` method, identified as the bottleneck, calls the `FindEntry` method under the hood which looks like this:
+
+```csharp
 private int FindEntry(TKey key)
 {
-  if ((object) key == null)
-    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+  if ((object) key == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
   if (this.buckets != null)
   {
     int num = this.comparer.GetHashCode(key) & int.MaxValue;
@@ -429,32 +419,51 @@ private int FindEntry(TKey key)
 }
 ```
 
-Call stack of the happy path
+The first thing is the `null` checks useless in our case, which don't affect performance in this situation, to be fair. Next thing is the `this.comparer.GetHashCode()` call where `this.comparer` is an `IEqualityComparer<TKey>` implementation. That makes the call a virtual interface call which cannot be inlined. All the same with the `this.comparer.Equals()` call.
 
+Having said that, the call stack of the hot path looks like the following in our case:
+
+```csharp
+Dictionary<TKey, TValue>.TryGetValue()
 Dictionary<TKey, TValue>.FindEntry()
-IEqualityComparer<TKey>.GetHashCode(T obj)
-Char.GetHashCode()
-IEqualityComparer<TKey>.Equals(T x, T y)
-Char.Equals(char obj)
-
-We know all our data types, no need in generic code.
-No need in hashcode and additional comparisons.
-
-Dictionary is an awesome data structure, it's generic it works.
-But there are trade offs. There are always trade offs.
-But BCL is too generic and isn't suitable for high performance.
-
-vcalls
-
-
-```
-Method |      Mean |    StdDev | Scaled | Scaled-StdDev |
-------------- |---------- |---------- |------- |-------------- |
-  Test | 2.7792 us | 0.0033 us |   1.00 |          0.00 |
-TestImproved | 1.8074 us | 0.0161 us |   0.65 |          0.01 |
+GenericEqualityComparer<T>.GetHashCode()
+(inlined) Char.GetHashCode()
+GenericEqualityComparer<TKey>.Equals()
+(inlined) Char.Equals()
 ```
 
-That's 1.5 time faster.
+That's understandable, Dictionary must handle any type. But we don't need that generic solution, we know all our types in advance.
+
+Let's just remove the Dictionary data structure from our `AhoCorasickTreeNode` class and implement a hash table for the `char` type. What we need is an array for hashcodes and an array for values. That's it. The code in that case could look like this:
+
+Basically remove all unnecessary code and flatten the call stack. TODO
+
+```csharp
+public AhoCorasickTreeNode GetTransition(char c)
+{
+    var bucket = c % _buckets.Length;
+    for (int i = _buckets[bucket]; i >= 0; i = _entries[i].Next)
+    {
+        if (_entries[i].Key == c)
+        {
+            return _entries[i].Value;
+        }
+    }
+
+    return null;
+}
+```
+
+The results:
+
+```
+|    Method |      Mean |    StdDev | Scaled | Scaled-StdDev |
+|---------- |---------- |---------- |------- |-------------- |
+|   Control | 2.7514 us | 0.0249 us |   1.00 |          0.00 |
+| Treatment | 1.7416 us | 0.0216 us |   0.63 |          0.01 |
+```
+
+Yeah, that's 1.5 time faster. Lesson learnt:
 
 #### How CPU works
 
@@ -651,7 +660,7 @@ Every tree can be put into array
 Also we want to keep the tree as small as possible.
 
 Now we came to the point where microbenchmarking doesn't show us the real picture and scary to say useless.
-And it's quite difficult if not impossible to measure changes and their impact.
+And it's quite difficult (if not impossible) to measure changes and their impact.
 The only CPU hardware counters. We identified the bottleneck as LLC misses. We are going to monitor only this counter via VTune Amplifier Custom analysis.
 
 Array pointer will still point somewhere in the heap. TODO
