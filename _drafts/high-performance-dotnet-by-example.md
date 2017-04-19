@@ -621,6 +621,9 @@ Performance optimization is an iterative process. Let's take a look at the Gener
 
 ![General Exploration - Divider]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneGEDivider.png)
 
+take considerably longer than integer or floating point addition, subtraction, or multiplication.
+TODO
+
 We can see that the DIV unit is pretty loaded. VTune Amplifier tries to help use: "The DIV unit is active for a significant portion of execution time. Locate the hot long-latency operation\(s\) and try to eliminate them. For example, if dividing by a constant, consider replacing the divide by a product of the inverse of the constant. If dividing an integer, see whether it is possible to right-shift instead."
 
 Indeed we have a modulo operation in the following code that calculates an array index for the key:
@@ -678,9 +681,13 @@ The benchmark results show almost 2 times improvement! Awesome!
 |   Control | 757.1089 ns | 8.5518 ns |   1.00 |          0.00 |
 | Treatment | 427.0176 ns | 6.4534 ns |   0.56 |          0.01 |
 
+
+
 ## A huge mistake
 
-I made a huge mistake 😞 I benchmarked and profiled the code in a tight loop like the following:
+![Benchmarking A Loop]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/BenchmarkingLoop.jpg)
+
+I just realized that I made a huge mistake 😞 I benchmarked and profiled the code in a tight loop like the following:
 
 ```csharp
 for (var i = 0; i < 1000000; i++)
@@ -689,14 +696,11 @@ for (var i = 0; i < 1000000; i++)
 }
 ```
 
-It is completely out of context and has different load profile. It shows completely different picture.
-Our tree is relatively small and only ~30Kb that perfectly fits into L1 cache. In a tight loop, all data resides in L1 cache and hides all memory related issues. While in the wild the code works under different memory pattern, we call the data structure only once per network request and there's a bunch of other business logic around it. That means that even L3 cache doesn't have the data. CPU stalls for memory.
+The data structure we optimize is small and only ~32Kb that perfectly fits into L1 CPU cache. In a tight loop all the data resides in the L1 cache that makes it almost free to access (just few cycles). This hides all memory related issues and expose wrong bottlenecks. The code has completely different load profile in production. We access the data structure only once per network request and there is a bunch of other business logic around it, we read and copy a lot of data, we allocate a lot. All that means that both the L1 and the L2 CPU caches don't have the data available. Most probably, even the L3 CPU has just a fraction of it, causing the CPU to stall while waiting for data.
 
-Having said that, all CPU optimizations are useless, CPU wait for requested memory to received from RAM -> L3 -> L2 -> L1 -> registers
+Having said that, we analyzed a skewed picture, all CPU focus optimizations are useless, the CPU stalls and wait for the data to received from RAM to L3 to L2 to L1 to registers.
 
 Load array from the heap
-
-range check
 
 CPI ~5 cycles per one instruction.
 
@@ -734,13 +738,14 @@ Every tree can be put into array
 
 Also we want to keep the tree as small as possible.
 
-Now we came to the point where microbenchmarking doesn't show us the real picture and scary to say useless.
-And it's quite difficult (if not impossible) to measure changes and their impact.
-The only CPU hardware counters. We identified the bottleneck as LLC misses. We are going to monitor only this counter via VTune Amplifier Custom analysis.
+Now we arrived at the point where microbenchmarking doesn't show us the real picture and mostly useless. Also it's quite difficult (if not impossible) to measure and profile changes and their impact. The only CPU hardware counters. We identified the bottleneck as LLC misses. We are going to monitor only this counter via VTune Amplifier Custom analysis.
+
+A trick to clear L3 cache.
+Some baseline measurement of counters.
 
 Array pointer will still point somewhere in the heap. TODO
 
-Unsafe ins the only
+Unsafe is the only
 
 ![Unsafe]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Unsafe.jpg)
 
@@ -766,6 +771,8 @@ TODO [prefetch ](https://github.com/dotnet/coreclr/issues/5025)
 Sequential memory access
 Prefetch
 C/C++ gives you more control
+
+range check TODO
 
 Or we came to the point where we have to re-iterate and think about efficiency again.
 
