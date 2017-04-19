@@ -35,7 +35,7 @@ If you find it interesting you can continue reading or jump to any of the sectio
 
 
 
-### Intro:
+## Intro:
 
  and we have a feature that identifies and filters unwanted bot traffic. In this post we explore the domains area, the algorithm used and its original implementation.
 
@@ -222,7 +222,7 @@ Website: http://ilspy.net/
 
 TODO
 
-### WinDbg
+## WinDbg
 
 ![WinDbg]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/WinDbg.png)
 
@@ -245,7 +245,7 @@ You can find [the algorithm code in this gist](https://gist.github.com/alexandrn
 
 In short, Trie based on Dictionary
 
-### Measurement
+## Measurement
 
 Following the main principle, we want to have a reliable way to measure the performance and further code changes. BenchmarkDotNet will help us with that, it is as simple as installing the library via NuGet, creating a test method with a `[Benchmark]` attribute.
 
@@ -290,7 +290,7 @@ TargetCount=20  WarmupCount=20
 
 This is less than 7 microsecond per execution. It means that we can do ~150K call per second on one CPU Core. It's pretty fast and good enough. But can we do better?
 
-### Know APIs of libraries you use!
+## Know APIs of libraries you use!
 
 Let's quickly review the code. We have the `AhoCorasickTree` class that contains logic on how to build itself and traverse/ search for patterns. The tree class consists of `AhoCorasickTreeNode` nodes. The `AhoCorasickTreeNode` class backed by `Dictionary<char, AhoCorasickTreeNode>` for prefix keys and further traversal, it stores its results in `List<string>`. If we take a look at the code that check the existence of the given prefix then we find the following code:
 
@@ -323,7 +323,7 @@ And the results:
 
 Not so bad, almost 5% improvement just using proper API methods. Lesson learnt: know APIs of libraries you use. Let's move to profiling.
 
-### Know CLR internals
+## Know CLR internals
 
 Let's start from a high-level analysis and try to understand how the code performs. PerfView is the best tool for the general purpose analysis. What we need is to create an isolated console application that executes the code in a loop with close to production usage. Let's launch PerfView and profile the application using it.
 
@@ -379,18 +379,16 @@ Indeed we clearly see the `box`ing operation. The reason for the boxing is that 
 
 Knowing that fact, the fix is quite easy, let's get rid of `IEnumerable<T>` for `List<T>` and check for `Count > 0` instead of `Any()`.
 
-```
 |    Method |      Mean |    StdDev |    Median | Scaled | Scaled-StdDev |
 |---------- |---------- |---------- |---------- |------- |-------------- |
 |   Control | 5.7016 us | 0.0669 us | 5.6759 us |   1.00 |          0.00 |
 | Treatment | 2.8440 us | 0.0357 us | 2.8433 us |   0.50 |          0.01 |
-```
 
 Wow, that's 2 times faster! We achieved that just joggling .NET internals.
 Lesson learnt: know .NET internals.
 
 
-### Know Basic data structures
+## Know Basic data structures
 
 Now it's time to find the bottleneck of the code. Let's launch PerfView again and profile the application. At this time we are interested in the "CPU Stacks" view:
 
@@ -425,11 +423,12 @@ Having said that, the call stack of the hot path looks like the following in our
 
 ```csharp
 Dictionary<TKey, TValue>.TryGetValue()
-Dictionary<TKey, TValue>.FindEntry()
-GenericEqualityComparer<T>.GetHashCode()
-(inlined) Char.GetHashCode()
-GenericEqualityComparer<TKey>.Equals()
-(inlined) Char.Equals()
+  Dictionary<TKey, TValue>.FindEntry()
+    GenericEqualityComparer<T>.GetHashCode()
+    (inlined) Char.GetHashCode()
+    GenericEqualityComparer<TKey>.Equals()
+    (inlined) Char.Equals()
+    // repeat if hash collision
 ```
 
 That's understandable, Dictionary must handle any type. But we don't need that generic solution, we know all our types in advance.
@@ -456,29 +455,26 @@ public AhoCorasickTreeNode GetTransition(char c)
 
 The results:
 
-```
+
 |    Method |      Mean |    StdDev | Scaled | Scaled-StdDev |
 |---------- |---------- |---------- |------- |-------------- |
 |   Control | 2.7514 us | 0.0249 us |   1.00 |          0.00 |
 | Treatment | 1.7416 us | 0.0216 us |   0.63 |          0.01 |
-```
+
 
 Yeah, that's 1.5 time faster. Lesson learnt:
 
-#### How CPU works
+## How CPU works
 
-Obligated picture to show how complex CPUs are
-TODO pic
+Now we came to the point when it's important to understand how CPU works to perform analyses and optimizations. Here's a necessary picture to show how complex CPUs are:
+
+![CPU]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/CPU.jpg)
 
 
-complex beasts
-message passing layered cache system
+Yes, a modern CPU is a complex beast and I'm not in a position to explain how it works, especially within a blog post. I just want to give a starting point, from where you can start the journey. In few words, CPU is a message passing system with multiple cache layers. Access next layer is slower than the previous one.  For example, cache layers and latency for my Intel i7-4770 (Haswell) 3.4 GHz are the following:
 
-CPU cache
-
-Intel i7-4770 (Haswell), 3.4 GHz
-
-Sizes:
+```ini
+Caches:
 Cache line = 64 bytes
 L1 Data cache = 32 KB
 L1 Instruction cache = 32 KB
@@ -491,27 +487,17 @@ L1 Data Cache Latency = 5 cycles for access with complex address calculation
 L2 Cache Latency = 12 cycles
 L3 Cache Latency = 36 cycles
 RAM Latency = 36 cycles + 57 ns
+```
 
-Source: http://www.7-cpu.com/cpu/Haswell.html
+Essentially, CPU can be divided into the Front-end and the Back-end. The Front-end is where instructions are fetched and decoded. The Back-end is where the computation performed. Optimizations are based on that concept.
 
-
-Sequential memory access
-Prefetch
-C/C++ gives you more control
-.NET can get it too https://github.com/dotnet/coreclr/issues/5025
-
-
-Essentially CPU can be divided to Front-End & Back-End
-
+The Out-of-Order Execution Engine
+TODO Branch prediction
 TODO CPU ports
 
 Capable of executing few instruction per second.
 
-There's a question on Stack Overflow, a guy asks a pretty serious and interesting question: How to achieve the maximum number of FLOPS per CPU cycle.
-
-But the answer is rather entertaining: "I've done this exact task before. But it was mainly to measure power consumption and CPU temperatures."
-
-The code looks like the following
+There's [a question on Stack Overflow](http://stackoverflow.com/questions/8389648/how-do-i-achieve-the-theoretical-maximum-of-4-flops-per-cycle), a guy asks a pretty serious and interesting question: How to achieve the theoretical maximum number of operations per CPU cycle. But [the answer](http://stackoverflow.com/a/8391601/974487) is rather entertaining: "I've done this exact task before. But it was mainly to measure power consumption and CPU temperatures." The code looks like the following:
 
 ```
 double test_dp_mac_AVX(double x,double y,uint64 iterations){
@@ -536,39 +522,82 @@ and many more lines like this
 
 ```
 
-That's basically assembly code written in C++ that works directly with CPU registers and instructions. It amazing how much power and control C++ gives you (not sure about register keyword though)
-
-The author warns you: "If you decide to compile and run this, pay attention to your CPU temperatures!!!"
-FLOPs per cycle: http://stackoverflow.com/questions/8389648/how-do-i-achieve-the-theoretical-maximum-of-4-flops-per-cycle
+That's basically assembly code written in C++ that works directly with CPU registers and instructions. It is amazing how much power and control C++ gives you. The author warns you: "If you decide to compile and run this, pay attention to your CPU temperatures!!! ... I take no responsibility for whatever damage that may result from running this code."
 
 
-The Out-of-Order Execution Engine
+["Intel 64 and IA-32 Architectures Software Developer Manuals"](https://software.intel.com/en-us/articles/intel-sdm) and ["Intel 64 and IA-32 Architectures Optimization Reference Manual"](http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-optimization-manual.html) are the most thorough manuals I've seen. I haven't read them all though and use them as a reference mostly.
 
-TODO Branch prediction
 
-Reference: "Intel® 64 and IA-32 Architectures Optimization Reference Manual"
-http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf
 
-#### Know overheads
-v5
+## Advanced data structures
+
+At this point PerfView won't show us any useful insight. It's time for the heavy artillery - Intel VTune Amplifier.
+
+VTune has several predefined analyses
+
+Advanced Hotspots analysis is the best place to start from  Event-based sampling analysis that monitors all the software on your system including the OS. To identify bottlenecks. We already did that using PerfView and more interested in why they are there.
 
 Run General Exploration analysis to triage hardware issues in your application. This type collects a complete list of events for analyzing a typical client application.
-See the tutorial for a C++ sample code.
+
+The General Exploration analysis type uses hardware event-based sampling collection. This analysis is a good starting point to triage hardware issues in your application. Once you have used Basic Hotspots or Advanced Hotspots analysis to determine hotspots in your code, you can perform General Exploration analysis to understand how efficiently your code is passing through the core pipeline. During General Exploration analysis, the VTune Amplifier collects a complete list of events for analyzing a typical client application.
+
+Event-based analysis that helps identify the most significant hardware issues affecting the performance of your application. Consider this analysis type as a starting point when you do hardware-level analysis.
+
+Shows a nice view:
+
+![VTune Amplifier General Exploration analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneGE.png)
+
+
 Use Memory Access analysis to identify memory-related issues, like NUMA problems and bandwidth-limited accesses, and attribute performance events to memory objects (data structures), which is provided due to instrumentation of memory allocations/de-allocations and getting static/global variables from symbol information.
 
-At this point PerfView won't show us any useful insights. It's time for the heavy artillery.
 
-VTune
+Let's take a look at the whys
 
-Basic hotspots
-Memory access
+One we can spot is L1 cache misses. as we know the L2 latency is ~12 CPU cycles CPU stalls doing nothing. It's worth to address.
 
-TODO Memory writes & memory reads
+Why?
+we have two arrays located in different place of the heap. One for hashes another entries.
+First we load one
+Prefetch TODO
 
-By Ref
+```csharp
+// load the array with buckets TODO
+var bucket = c % _buckets.Length;
+
+// access an element
+for (int i = _buckets[bucket]; i >= 0; i = _entries[i].Next)
+{
+    // load another array and access
+    if (_entries[i].Key == c)
+    {
+        return _entries[i].Value;
+    }
 
 
+}
 ```
+
+collisions can lead to more misses
+
+
+Why can't we have just one array for hashes and values
+
+Open addressing only saves memory if the entries are small
+
+On the other hand, normal open addressing is a poor choice for large elements
+
+
+Generally speaking, open addressing is better used for hash tables with small records that can be stored within the table
+
+https://en.wikipedia.org/wiki/Hash_table
+
+
+Trade offs
+
+
+
+
+```csharp
 if (pointer.Results.Count > 0)
 ```
 
@@ -580,36 +609,80 @@ jle 0x7ffcbc4238a1
 ```
 
 
-#### Lesson: Know advanced data structures
-v6
-
-Memory exploration
-
 Why classic hashset is bad? Two arrays, pointer indirection, cache misses, collisions -> more misses.
 
 Classic hashset -> open address hashset
 
-I believe the open address hashset should be the default one in BCL.
 
 
-#### Know hacks
-v7
-MOD is expensive
+## Know hacks
 
-Back-End -> Division unit
+Performance optimization is an iterative process. Let's take a look at the General Exploration analysis of the current state again.
 
+![General Exploration - Divider]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneGEDivider.png)
+
+We can see that the DIV unit is pretty loaded. VTune Amplifier tries to help use: "The DIV unit is active for a significant portion of execution time. Locate the hot long-latency operation\(s\) and try to eliminate them. For example, if dividing by a constant, consider replacing the divide by a product of the inverse of the constant. If dividing an integer, see whether it is possible to right-shift instead."
+
+Indeed we have a modulo operation in the following code that calculates an array index for the key:
+
+```csharp
+public AhoCorasickTreeNode GetTransition(char c)
+{
+    if (_size == 0) return null;
+=>  var ind = c % _size;
+    var keyThere = _entries[ind].Key;
+...
+}
 ```
-Method |        Mean |    StdDev | Scaled | Scaled-StdDev |
-------------- |------------ |---------- |------- |-------------- |
-  Test | 787.3592 ns | 3.9424 ns |   1.00 |          0.00 |
-TestImproved | 435.0724 ns | 1.7562 ns |   0.55 |          0.00 |
+
+That compiles to
+
+```ini
+sub rsp, 0x28 ; bump the stack pointer
+mov r8d, dword ptr [rcx+0x28] ; _size field value to r8d
+test r8d, r8d ; check for null
+jnz ; jump if not
+xor eax, eax
+add rsp, 0x28
+ret ; return null
+
+movzx r9d, dx ; char argument to r9d
+mov eax, r9d ; r9d to eax
+cdq ; double the eax
+idiv r8d ; divide eax by r8d (_size)
+mov eax, edx ; result to eax
+...
 ```
 
-#### ???
+`idiv` instruction consumes considerably more cycles than `mov` for example. It can be from 20 to 100 cycles depending on CPU and register type.
 
-I made a huge mistake. I benchmarked and profiled the code in a tight loop like the following:
+VTune gave us a hint, let's replace our `mod` operation with a bit hack
+Needs to be a power of two.
+https://graphics.stanford.edu/~seander/bithacks.html
 
+```csharp
+public AhoCorasickTreeNode GetTransition(char c)
+{
+    if (_size == 0) return null;
+    var ind = c & (_size - 1);
+    var keyThere = _entries[ind].Key;
+...
+}
 ```
+
+The benchmark results show almost 2 times improvement! Awesome!
+
+
+|    Method |        Mean |    StdDev | Scaled | Scaled-StdDev |
+|---------- |------------ |---------- |------- |-------------- |
+|   Control | 757.1089 ns | 8.5518 ns |   1.00 |          0.00 |
+| Treatment | 427.0176 ns | 6.4534 ns |   0.56 |          0.01 |
+
+## A huge mistake
+
+I made a huge mistake 😞 I benchmarked and profiled the code in a tight loop like the following:
+
+```csharp
 for (var i = 0; i < 1000000; i++)
 {
     tree.Contains(UserAgent);
@@ -628,6 +701,7 @@ range check
 CPI ~5 cycles per one instruction.
 
 Source Line	Source	CPU Time	L1 Bound	LLC Miss	Loads	Stores	LLC Miss Count	Average Latency (cycles)	Source File
+
 ```
 83	            var keyThere = _entries[ind].Key;	2.580s	8.8%	0.0%	10,628,118,834	0	0	8	AhoCorasickTreeNode.cs
 ```
@@ -655,6 +729,7 @@ Reminder: cache sizes, latency. analyze sizes. scattered around the heap. Every 
 What can we do here?
 
 Sequential memory access, optimizer can help and prefetch data.
+
 Every tree can be put into array
 
 Also we want to keep the tree as small as possible.
@@ -667,12 +742,16 @@ Array pointer will still point somewhere in the heap. TODO
 
 Unsafe ins the only
 
+![Unsafe]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Unsafe.jpg)
+
+
+
 We managed to reduce number of LLC misses by 3 times. Which is great!
 
 
 
 
-#### Summary
+## Summary
 
 TODO
 We improved by bla-bla-bla.
@@ -683,6 +762,10 @@ We improved by bla-bla-bla.
 We are at the point when it's impossible to reliably benchmark the code and it's quite difficult to profile it and measure the impact of changes.
 All further optimization steps should be focused on reducing LLC misses and can include compacting the array size, generating the perfect hash function,
 TODO [prefetch ](https://github.com/dotnet/coreclr/issues/5025)
+
+Sequential memory access
+Prefetch
+C/C++ gives you more control
 
 Or we came to the point where we have to re-iterate and think about efficiency again.
 
