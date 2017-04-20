@@ -517,9 +517,7 @@ double test_dp_mac_AVX(double x,double y,uint64 iterations){
     r7 = _mm256_mul_pd(r1,_mm256_set1_pd(4.1231056256176605498));
     r8 = _mm256_add_pd(r0,_mm256_set1_pd(0.37796447300922722721));
 ...
-
 and many more lines like this
-
 ```
 
 That's basically assembly code written in C++ that works directly with CPU registers and instructions. It is amazing how much power and control C++ gives you. The author warns you: "If you decide to compile and run this, pay attention to your CPU temperatures!!! ... I take no responsibility for whatever damage that may result from running this code."
@@ -595,18 +593,6 @@ https://en.wikipedia.org/wiki/Hash_table
 Trade offs
 
 
-
-
-```csharp
-if (pointer.Results.Count > 0)
-```
-
-```
-mov rax, qword ptr [rsp+0x28]
-mov rax, qword ptr [rax+0x10]
-cmp dword ptr [rax+0x18], 0x0
-jle 0x7ffcbc4238a1
-```
 
 
 Why classic hashset is bad? Two arrays, pointer indirection, cache misses, collisions -> more misses.
@@ -690,15 +676,18 @@ Having said that, we saw a skewed picture and analyzed incorrect bottlenecks. Fo
 Let's take a moment and look at what we have. We built a tree; the tree consists of nodes. A node is a class, that means it's stored somewhere on the heap. A node (hash table) contains an array of keys and value, that array is also stored on the heap. All those node classed and arrays scattered around the heap without a clear access pattern. Accessing them CPU needs to request the memory which could lead to a number of expensive cache misses.
 
 What can we do here? We can make the CPU help us!
-Modern CPUs perform [the data prefetching optimization](https://en.wikipedia.org/wiki/Cache_prefetching) to improve execution performance. CPU can load instructions or data to a cache before it is actually needed. We need to make the CPU easy to reason about our access pattern, and consume the data sequentially. Every tree can be put into array, right? Why don't we put the whole tree into one array?
+Modern CPUs perform [the data prefetching optimization](https://en.wikipedia.org/wiki/Cache_prefetching) to improve execution performance. CPU can load instructions or data to a cache before it is actually needed. We need to make the CPU easy to reason about our memory access pattern, and consume the data sequentially. Every tree can be put into array, right? Why don't we put the whole tree into one array?
 
 All that justify us to go unsafe!
 
 ![Unsafe]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Unsafe.jpg)
 
-Since we are going unsafe, another interesting observation is the user agent string traversal code. "Unsafe" is 2 times faster.
 
+TODO explain array
 
+### String traversal
+
+Since we are going unsafe, there is another interesting observation - the user agent string traversal code. The "managed" version of it looks like this:
 
 ```csharp
 for (var i = 0; i < userAgent.Length; i++)
@@ -706,21 +695,23 @@ for (var i = 0; i < userAgent.Length; i++)
     var c = userAgent[i];
 }
 ```
-TODO
 
-memory access with complex address calculation
-instructions depend on each other and cannot be executed in parallel
+The loop compile to the following code:
 
 ```ini
+...
 ; Block 2:
 movsxd r8, eax
 movzx r8d, word ptr [rcx+r8*2+0xc]
 inc eax
 cmp edx, eax
 jnle 0x7ffdeecd3d39 ; <Block 2>
+...
 ```
 
+What do we see here? Each next instruction depends on the previous one, hence CPU cannot execute them in parallel. There's a memory access with complex address calculation. JIT definitely could do better job, right?
 
+So, unsafe huh?
 
 ```csharp
 fixed (char* p = userAgent)
@@ -736,54 +727,86 @@ fixed (char* p = userAgent)
 }
 ```
 
-Here we have a simple memory access, no calculations
-two `add` instruction can be executed in parallel
+The loop code:
 
 ```ini
+...
 ; Block 4:
 movzx ecx, word ptr [rax]
 add rax, 0x2
 add edx, 0xfffffffe
 test edx, edx
 jnle 0x7ffdeecd3d83 ;<Block 4>
+...
 ```
 
-It gives us 2 times faster traversal in a benchmark
+Here we have a simple memory access with no calculations. Some of the instructions can be pipelined and executed in parallel.
+
+It gives us 2 times faster traversal in a benchmark:
+
+|          Method |        Mean |    StdDev |      Median | Scaled | Scaled-StdDev |
+|---------------- |------------ |---------- |------------ |------- |-------------- |
+|        Traverse | 132.5022 ns | 0.9385 ns | 132.1233 ns |   1.00 |          0.00 |
+|  TraverseUnsafe |  70.7301 ns | 0.1986 ns |  70.6969 ns |   0.53 |          0.00 |
 
 
-But how to measure those changes in the wild? We are stuck at the situation where microbenchmarking doesn't show us the real picture and mostly useless. Also it's quite difficult (if not impossible) to measure and profile changes and their impact. The only CPU hardware counters. We identified the bottleneck as LLC misses. We are going to monitor only this counter via VTune Amplifier Custom analysis.
+### How to measure?
 
-A trick to clear L3 cache.
-Some baseline measurement of counters.
+We've made some improvement again. But... how to measure those changes in the wild? We are stuck in the situation where microbenchmarking doesn't show us the real picture and mostly useless. Also it's quite difficult (if not impossible) to measure and profile changes and their impact in the wild. The only way is to employ CPU hardware counters. We already identified the bottleneck as LLC (last-level cache) misses. We are going to monitor only this counter via VTune Amplifier Custom analysis.
 
-CPI ~5 cycles per one instruction.
-
-TODO pic or table with misses?
+As simple as finding needed hardware event out of hundreds:
 
 
+![Custom Analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/CustomAnalysis.png)
 
-We managed to reduce number of LLC misses by 3 times. Which is great!
+Let's do a trick, create an array that is larger than the L3 cache and traverse it before each iteration. This simple trick will clear the CPU cache. Yes, that trick will consume almost all CPU time, so we need to measure counters for considerable amount of time.
 
+```csharp
+private static readonly byte[] Data = new byte[16 * 1024 * 1024];
 
+for (var i = 0; i < 1000000; i++)
+{
+    // clear the CPU caches
+    var sum = 0;
+    for (var j = 0; j < Data.Length; j++)
+    {
+        sum += Data[j];
+    }
 
+    // the code we profile
+    tree.Contains(UserAgent);
+}
+```
+
+![VTune LLC misses]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneLLC.png)
+
+Show that gathered more than 7 million LLC misses during our run.
+
+After the optimizations:
+
+![VTune LLC misses after]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneLLCAfter.png)
+
+Shows only 1.5 million LLC misses. We managed to reduce number of LLC misses by more than 4 times! Which is amazing! Number of CPU clocks, spent in the code we optimize, also dropped by 2 times. I think it's safe to say that we improved performance in the wild by 2 times using the latest optimization.
 
 ## Summary
 
 TODO
-We improved by bla-bla-bla.
+We improved performance by probably more than 15 times.
 
 
 "If you can not measure it, you can not improve it." Lord Kelvin
 
 We are at the point when it's impossible to reliably benchmark the code and it's quite difficult to profile it and measure the impact of changes.
 All further optimization steps should be focused on reducing LLC misses and can include compacting the array size, generating the perfect hash function,
-TODO [prefetch ](https://github.com/dotnet/coreclr/issues/5025)
 
-Sequential memory access
-Prefetch
+
+Smaller array
+Perfect hash
+ASCII -> Bitmasks
+TODO [software prefetch](https://github.com/dotnet/coreclr/issues/5025)
 C/C++ gives you more control
 
-range check TODO
+range check compared to miss? TODO
 
 Or we came to the point where we have to re-iterate and think about efficiency again.
 
