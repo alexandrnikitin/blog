@@ -693,6 +693,7 @@ Since we are going unsafe, there is another interesting observation - the user a
 for (var i = 0; i < userAgent.Length; i++)
 {
     var c = userAgent[i];
+    ...
 }
 ```
 
@@ -723,6 +724,7 @@ fixed (char* p = userAgent)
         var c = *cptr;
         cptr++;
         len -= 2;
+        ...
     }
 }
 ```
@@ -752,13 +754,13 @@ It gives us 2 times faster traversal in a benchmark:
 
 ### How to measure?
 
-We've made some improvement again. But... how to measure those changes in the wild? We are stuck in the situation where microbenchmarking doesn't show us the real picture and mostly useless. Also it's quite difficult (if not impossible) to measure and profile changes and their impact in the wild. The only way is to employ CPU hardware counters. We already identified the bottleneck as LLC (last-level cache) misses. We are going to monitor only this counter via VTune Amplifier Custom analysis.
+We've made some improvement again. But... how to measure these changes in the wild? Unfortunately we are stuck in the situation where microbenchmarking doesn't show us the real picture and became useless. Also it's quite difficult to measure and profile changes and their impact in the wild. The only way is to employ CPU hardware counters. We already identified the bottleneck as LLC (last-level cache) misses. We are going to monitor only this counter via VTune Amplifier Custom analysis. Intel VTune Amplifier allow us
 
 As simple as finding needed hardware event out of hundreds:
 
-
 ![Custom Analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/CustomAnalysis.png)
 
+As for the real-world emulation
 Let's do a trick, create an array that is larger than the L3 cache and traverse it before each iteration. This simple trick will clear the CPU cache. Yes, that trick will consume almost all CPU time, so we need to measure counters for considerable amount of time.
 
 ```csharp
@@ -790,7 +792,6 @@ Shows only 1.5 million LLC misses. We managed to reduce number of LLC misses by 
 
 ## Summary
 
-TODO
 We improved performance by probably more than 15 times.
 
 
