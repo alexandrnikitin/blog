@@ -462,7 +462,7 @@ The results:
 | Treatment | 1.7416 us | 0.0216 us |   0.63 |          0.01 |
 
 
-Yeah, that's 1.5 time faster. Lesson learnt:
+Yeah, that's 1.6 time faster. Lesson learnt:
 
 ## How CPU works
 
@@ -617,16 +617,11 @@ Classic hashset -> open address hashset
 
 ## Know hacks
 
-Performance optimization is an iterative process. Let's take a look at the General Exploration analysis of the current state again.
+Performance optimization is an iterative process. Let's take a look at the General Exploration analysis of the current state again:
 
 ![General Exploration - Divider]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneGEDivider.png)
 
-take considerably longer than integer or floating point addition, subtraction, or multiplication.
-TODO
-
-We can see that the DIV unit is pretty loaded. VTune Amplifier tries to help use: "The DIV unit is active for a significant portion of execution time. Locate the hot long-latency operation\(s\) and try to eliminate them. For example, if dividing by a constant, consider replacing the divide by a product of the inverse of the constant. If dividing an integer, see whether it is possible to right-shift instead."
-
-Indeed we have a modulo operation in the following code that calculates an array index for the key:
+We can spot that VTune Amplifier highlighted the Divider unit, it shows us that almost 50% of execution time spent there. Some arithmetic operations like division and square root take considerably longer than addition or multiplication, and performed by the DIV unit. Indeed we have a modulo operation in the following code that calculates an index into an array of buckets:
 
 ```csharp
 public AhoCorasickTreeNode GetTransition(char c)
@@ -641,53 +636,45 @@ public AhoCorasickTreeNode GetTransition(char c)
 That compiles to
 
 ```ini
-sub rsp, 0x28 ; bump the stack pointer
-mov r8d, dword ptr [rcx+0x28] ; _size field value to r8d
-test r8d, r8d ; check for null
-jnz ; jump if not
-xor eax, eax
-add rsp, 0x28
-ret ; return null
-
+...
+; r8d has _size
 movzx r9d, dx ; char argument to r9d
 mov eax, r9d ; r9d to eax
-cdq ; double the eax
-idiv r8d ; divide eax by r8d (_size)
+cdq ; clear edx
+idiv r8d ; divide eax by r8d (_size); quotient in ax, remainder in dx
 mov eax, edx ; result to eax
 ...
 ```
 
-`idiv` instruction consumes considerably more cycles than `mov` for example. It can be from 20 to 100 cycles depending on CPU and register type.
+`idiv` instruction consumes considerably more CPU cycles than `mov` or `add` for example. It can be from 20 to 100 cycles depending on CPU and register size.
 
-VTune gave us a hint, let's replace our `mod` operation with a bit hack
-Needs to be a power of two.
-https://graphics.stanford.edu/~seander/bithacks.html
+VTune Amplifier gives the clue: "The DIV unit is active for a significant portion of execution time. Locate the hot long-latency operation\(s\) and try to eliminate them. For example, if dividing by a constant, consider replacing the divide by a product of the inverse of the constant. If dividing an integer, see whether it is possible to right-shift instead." Let's replace our modulo operation with a well known bit hack. So our code becomes like this:
 
 ```csharp
 public AhoCorasickTreeNode GetTransition(char c)
 {
     if (_size == 0) return null;
-    var ind = c & (_size - 1);
+    var ind = c & (_size - 1); // _size needs to be a power of 2
     var keyThere = _entries[ind].Key;
 ...
 }
 ```
-
 The benchmark results show almost 2 times improvement! Awesome!
-
 
 |    Method |        Mean |    StdDev | Scaled | Scaled-StdDev |
 |---------- |------------ |---------- |------- |-------------- |
 |   Control | 757.1089 ns | 8.5518 ns |   1.00 |          0.00 |
 | Treatment | 427.0176 ns | 6.4534 ns |   0.56 |          0.01 |
 
+You can find more interesting bit twiddling hacks on [the Stanford university website.](https://graphics.stanford.edu/~seander/bithacks.html)
+
 
 
 ## A huge mistake
 
-![Benchmarking A Loop]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/BenchmarkingLoop.jpg)
+![Profiling In A Loop]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/ThisIsFine.jpg)
 
-I just realized that I made a huge mistake 😞 I benchmarked and profiled the code in a tight loop like the following:
+I just realized that I made a huge mistake 😞 I benchmarked and profiled a code in the tight loop:
 
 ```csharp
 for (var i = 0; i < 1000000; i++)
@@ -696,9 +683,9 @@ for (var i = 0; i < 1000000; i++)
 }
 ```
 
-The data structure we optimize is small and only ~32Kb that perfectly fits into L1 CPU cache. In a tight loop all the data resides in the L1 cache that makes it almost free to access (just few cycles). This hides all memory related issues and expose wrong bottlenecks. The code has completely different load profile in production. We access the data structure only once per network request and there is a bunch of other business logic around it, we read and copy a lot of data, we allocate a lot. All that means that both the L1 and the L2 CPU caches don't have the data available. Most probably, even the L3 CPU has just a fraction of it, causing the CPU to stall while waiting for data.
+The data structure we are optimizing is small and less than 32Kb that perfectly fits into L1 CPU cache. In a tight loop all the data resides in the L1 cache that makes it almost free to access (just few cycles). This hides all memory related issues and expose wrong bottlenecks. The code has completely different load profile in production. We access the data structure only once per network request and there is a bunch of other business logic around it, we read and copy a lot of data, we allocate a lot. All that means that both the L1 and the L2 CPU caches don't have the data available. Most probably, even the L3 CPU has just a fraction of it, causing the CPU to stall while waiting for data.
 
-Having said that, we analyzed a skewed picture, all CPU focus optimizations are useless, the CPU stalls and wait for the data to received from RAM to L3 to L2 to L1 to registers.
+Having said that, we analyzed a skewed picture and saw different bottlenecks, all CPU focus optimizations are useless, the CPU stalls and wait for the data to received from RAM to L3 to L2 to L1 to registers.
 
 Load array from the heap
 
