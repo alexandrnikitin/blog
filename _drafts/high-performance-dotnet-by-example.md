@@ -648,7 +648,7 @@ mov eax, edx ; result to eax
 
 `idiv` instruction consumes considerably more CPU cycles than `mov` or `add` for example. It can be from 20 to 100 cycles depending on CPU and register size.
 
-VTune Amplifier gives the clue: "The DIV unit is active for a significant portion of execution time. Locate the hot long-latency operation\(s\) and try to eliminate them. For example, if dividing by a constant, consider replacing the divide by a product of the inverse of the constant. If dividing an integer, see whether it is possible to right-shift instead." Let's replace our modulo operation with a well known bit hack. So our code becomes like this:
+VTune Amplifier gives the clue: "The DIV unit is active for a significant portion of execution time. Locate the hot long-latency operation\(s\) and try to eliminate them. For example, if dividing by a constant, consider replacing the divide by a product of the inverse of the constant. If dividing an integer, see whether it is possible to right-shift instead." Let's replace our modulo operation with a well known bit hack; our code becomes like this:
 
 ```csharp
 public AhoCorasickTreeNode GetTransition(char c)
@@ -659,7 +659,7 @@ public AhoCorasickTreeNode GetTransition(char c)
 ...
 }
 ```
-The benchmark results show almost 2 times improvement! Awesome!
+So that we got rid of the `idiv` operation and the benchmark results show almost 2 times improvement! Awesome! Interesting enough that VTune was quite precise about 50% time spent in the DIV unit.
 
 |    Method |        Mean |    StdDev | Scaled | Scaled-StdDev |
 |---------- |------------ |---------- |------- |-------------- |
@@ -670,11 +670,11 @@ You can find more interesting bit twiddling hacks on [the Stanford university we
 
 
 
-## A huge mistake
+## A HUGE mistake
 
 ![Profiling In A Loop]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/ThisIsFine.jpg)
 
-I just realized that I made a huge mistake 😞 I benchmarked and profiled a code in the tight loop:
+I just realized that I made a huge mistake 😞 I benchmarked and profiled a code in the tight loop like this:
 
 ```csharp
 for (var i = 0; i < 1000000; i++)
@@ -683,58 +683,82 @@ for (var i = 0; i < 1000000; i++)
 }
 ```
 
-The data structure we are optimizing is small and less than 32Kb that perfectly fits into L1 CPU cache. In a tight loop all the data resides in the L1 cache that makes it almost free to access (just few cycles). This hides all memory related issues and expose wrong bottlenecks. The code has completely different load profile in production. We access the data structure only once per network request and there is a bunch of other business logic around it, we read and copy a lot of data, we allocate a lot. All that means that both the L1 and the L2 CPU caches don't have the data available. Most probably, even the L3 CPU has just a fraction of it, causing the CPU to stall while waiting for data.
+The data structure, we are optimizing, is small and less than 32Kb that perfectly fits into L1 CPU cache. In a tight loop all the data resides in the L1 cache that makes it almost free to access (just few cycles). This hides all memory related issues and expose wrong bottlenecks. The code has completely different load profile in production. We access the data structure only once per network request. There is a bunch of other business logic around it, where we read, write and allocate a lot of data. All this means that both the L1 and the L2 CPU caches don't have the data readily available. Most probably, even the L3 CPU has just a part of it, causing the CPU to stall while waiting for data.
 
-Having said that, we analyzed a skewed picture and saw different bottlenecks, all CPU focus optimizations are useless, the CPU stalls and wait for the data to received from RAM to L3 to L2 to L1 to registers.
+Having said that, we saw a skewed picture and analyzed incorrect bottlenecks. For instance, the recent division optimization won't be so useful in the wild, the CPU stalls and waits for the data to be transferred from RAM to L3, then to L2, then to L1 and finally to registers.
 
-Load array from the heap
+Let's take a moment and look at what we have. We built a tree; the tree consists of nodes. A node is a class, that means it's stored somewhere on the heap. A node (hash table) contains an array of keys and value, that array is also stored on the heap. All those node classed and arrays scattered around the heap without a clear access pattern. Accessing them CPU needs to request the memory which could lead to a number of expensive cache misses.
 
-CPI ~5 cycles per one instruction.
+What can we do here? We can make the CPU help us!
+Modern CPUs perform [the data prefetching optimization](https://en.wikipedia.org/wiki/Cache_prefetching) to improve execution performance. CPU can load instructions or data to a cache before it is actually needed. We need to make the CPU easy to reason about our access pattern, and consume the data sequentially. Every tree can be put into array, right? Why don't we put the whole tree into one array?
 
-Source Line	Source	CPU Time	L1 Bound	LLC Miss	Loads	Stores	LLC Miss Count	Average Latency (cycles)	Source File
+All that justify us to go unsafe!
 
+![Unsafe]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Unsafe.jpg)
+
+Since we are going unsafe, another interesting observation is the user agent string traversal code. "Unsafe" is 2 times faster.
+
+
+
+```csharp
+for (var i = 0; i < userAgent.Length; i++)
+{
+    var c = userAgent[i];
+}
 ```
-83	            var keyThere = _entries[ind].Key;	2.580s	8.8%	0.0%	10,628,118,834	0	0	8	AhoCorasickTreeNode.cs
+TODO
+
+memory access with complex address calculation
+instructions depend on each other and cannot be executed in parallel
+
+```ini
+; Block 2:
+movsxd r8, eax
+movzx r8d, word ptr [rcx+r8*2+0xc]
+inc eax
+cmp edx, eax
+jnle 0x7ffdeecd3d39 ; <Block 2>
 ```
 
+
+
+```csharp
+fixed (char* p = userAgent)
+{
+    var len = userAgent.Length * 2;
+    var cptr = p;
+    while (len > 0)
+    {
+        var c = *cptr;
+        cptr++;
+        len -= 2;
+    }
+}
 ```
-Address	Source Line	Assembly	CPU Time	L1 Bound	LLC Miss	Loads	Stores	LLC
-Miss Count	Average Latency (cycles)
-0x7fff7a2b09fb	82	and edx, eax	0.960s	5.8%	0.0%	0	0	0	0
-0x7fff7a2b09fd	83	mov rcx, qword ptr [rcx+0x20]	0.073s	25.7%	0.0%	1,774,253,226	0	0	8
-0x7fff7a2b0a01	83	mov r8, rcx	0.038s	92.2%	0.0%	0	0	0	0
-0x7fff7a2b0a04	83	mov r9d, dword ptr [r8+0x8]	0.001s	0.0%	0.0%	4,134,724,038	0	0	8
-0x7fff7a2b0a08	83	cmp edx, r9d	2.007s	6.6%	0.0%	600,018	0	0	0
 
-Address	Source Line	Assembly	CPU Time	L1 Bound	LLC Miss	Loads	Stores	LLC Miss Count	Average Latency (cycles)
+Here we have a simple memory access, no calculations
+two `add` instruction can be executed in parallel
 
-Wait? again?
-0x7fff7a2b0b84	86	cmp edx, r9d	0.431s	15.0%	0.0%	0	0	0	0
-0x7fff7a2b0b87	86	jnb 0x7fff7a2b0b9a <Block 9>							
-
+```ini
+; Block 4:
+movzx ecx, word ptr [rax]
+add rax, 0x2
+add edx, 0xfffffffe
+test edx, edx
+jnle 0x7ffdeecd3d83 ;<Block 4>
 ```
 
-Let's take a look what we have:
-Reminder: cache sizes, latency. analyze sizes. scattered around the heap. Every next reference to a not yet meet node or array = cache miss = 50-100ns latency.
+It gives us 2 times faster traversal in a benchmark
 
-What can we do here?
 
-Sequential memory access, optimizer can help and prefetch data.
-
-Every tree can be put into array
-
-Also we want to keep the tree as small as possible.
-
-Now we arrived at the point where microbenchmarking doesn't show us the real picture and mostly useless. Also it's quite difficult (if not impossible) to measure and profile changes and their impact. The only CPU hardware counters. We identified the bottleneck as LLC misses. We are going to monitor only this counter via VTune Amplifier Custom analysis.
+But how to measure those changes in the wild? We are stuck at the situation where microbenchmarking doesn't show us the real picture and mostly useless. Also it's quite difficult (if not impossible) to measure and profile changes and their impact. The only CPU hardware counters. We identified the bottleneck as LLC misses. We are going to monitor only this counter via VTune Amplifier Custom analysis.
 
 A trick to clear L3 cache.
 Some baseline measurement of counters.
 
-Array pointer will still point somewhere in the heap. TODO
+CPI ~5 cycles per one instruction.
 
-Unsafe is the only
-
-![Unsafe]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Unsafe.jpg)
+TODO pic or table with misses?
 
 
 
