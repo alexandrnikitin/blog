@@ -4,7 +4,7 @@ title: "High-performance .NET by example: Filtering bot traffic"
 date: 2017-01-27
 modified:
 categories: [.NET, Algorithms]
-excerpt: "Mistakes and lessons from performance optimizations: from BCL API usage to advanced data structures, from bit hacks to making code CPU-friendlier."
+excerpt: "Mistakes and lessons from the real-world feature performance optimizations: from BCL API usage to advanced data structures, from bit hacks to making code CPU-friendlier."
 tags: [.NET, High-performance]
 comments: true
 share: true
@@ -815,15 +815,15 @@ It gives us 2 times faster traversal in a benchmark:
 
 
 
-### Some code:
+### Some ugly code
 
-Having said all that,
-
-The flattened tree in the array could look like:
+Having said all the above, we flatten tree into an array. We can also compact the array in a way we couldn't do in managed environment i.e. store a flag or data along or instead a reference to a node.
 
 ```
 [
-  Node1: [Size, Failure Index, [Node Index, Key, Is Pattern End]]]
+  Node1: [Size, FailureIndex, [Key1, NodeIndex1; KeyN, NodeIndexN;]];
+  NodeN: ...
+]
 
 ```
 
@@ -920,7 +920,7 @@ After the optimizations:
 
 ![VTune LLC misses after]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneLLCAfter.png)
 
-Shows only 1.5 million LLC misses. We managed to reduce number of LLC misses by more than 4 times! Which is amazing! Number of CPU clocks, spent in the code we optimize, also dropped by 2 times. I think it's safe to say that we improved performance in the wild by 2 times using the latest optimization.
+Shows only 1.5 million LLC misses. We managed to reduce number of LLC misses by more than 4 times! Which is amazing! Number of CPU clocks spent in the code also dropped by 2 times. I think it's safe to say that we improved performance in the wild by 2 times using the latest optimization.
 
 ## Summary
 
