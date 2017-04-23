@@ -1,10 +1,10 @@
 ---
 layout: single
-title: "High-performance .NET by example: Filter bot traffic"
+title: "High-performance .NET by example: Filtering bot traffic"
 date: 2017-01-27
 modified:
 categories: [.NET, Algorithms]
-excerpt: TODO
+excerpt: "Mistakes and lessons from performance optimizations: from BCL API usage to advanced data structures, from bit hacks to making code CPU-friendlier."
 tags: [.NET, High-performance]
 comments: true
 share: true
@@ -14,7 +14,7 @@ share: true
 
 ### TL;DR
 
-BenchmarkDotNet for benchmarks; Intel VTune Amplifier for low level optimizations; optimizations from BCL API usage to data structures to bit hacks to cache misses to
+BenchmarkDotNet for benchmarks; Intel VTune Amplifier for low-level optimizations; mistakes and lessons from performance optimizations: from BCL API usage to advanced data structures, from bit hacks to making code CPU-friendlier.
 
 
 
@@ -23,7 +23,7 @@ BenchmarkDotNet for benchmarks; Intel VTune Amplifier for low level optimization
 This post is based on a real-world feature that is used under high-load scenarios. The feature identifies and filters unwanted bot traffic.
 It’s backed by the Aho–Corasick algorithm, a string searching algorithm that matches many keywords simultaneously.
 
-In this post we explore the domain area, the algorithm used and its original implementation. The post walks through a series of various performance optimization steps: from BCL API usage to "advanced" data structures, from bit twiddling hacks to addressing CPU cache misses. It also covers tools I usually use to analyze code.
+In this post we explore the domain area, the used algorithm and its original implementation. The post walks through a series of various performance optimization steps: from BCL API usage to advanced data structures, from bit twiddling hacks to addressing CPU cache misses. It also covers tools I usually use to analyze code.
 
 If you find it interesting you can continue reading or jump to any of the sections:
 
@@ -47,22 +47,22 @@ All websites receive bot traffic! Not a surprise, right? There were quite a few 
 
 But, surprisingly, not all bots are bad, and some of them are even vital for the Internet. The classification could look like this:
 
-- **White bots** (good) - various search engines bots like Google, Bing or [DuckDuckGo](https://duckduckgo.com/). They are crucial, that's how we all discover things on the Internet. They respect and follow [the robots exclusion protocol (robot.txt)](https://en.wikipedia.org/wiki/Robots_exclusion_standard), aware of [the Robots HTML \<META\> tag](https://www.w3.org/TR/html401/appendix/notes.html#h-B.4.1.2). What's the most important is that they clearly identify themselves by providing User Agent strings and IP addresses lists.
+- **White bots** (good) - various search engine bots like Google, Bing or [DuckDuckGo](https://duckduckgo.com/). They are crucial, that's how we all discover things on the Internet. They respect and follow [the robots exclusion protocol (robot.txt)](https://en.wikipedia.org/wiki/Robots_exclusion_standard), aware of [the Robots HTML \<META\> tag](https://www.w3.org/TR/html401/appendix/notes.html#h-B.4.1.2). What's the most important is that they clearly identify themselves by providing User Agent strings and IP Address lists.
 
-- **Grey bots** (neutral) - feed fetchers, website crawlers and data scrappers. They are similar to the white bots. Except they usually don't bring users/clients/money directly to a website, but generate additional load. They may or may not identify themselves, may or may not follow the robots protocol.
+- **Grey bots** (neutral) - feed fetchers, website crawlers and data scrappers. They are similar to the white bots. Except they usually don't bring users/clients/money directly to a website, but they generate additional load. They may or may not identify themselves, may or may not follow the robots protocol.
 
 - **Black bots** (harmful) - fraud and criminal activity, intentional impersonation for profit. They imitate user behavior to harm or make fake impression, clicks, etc.
 
-We won't cover black bots because as it is a huge topic with sophisticated analysis and Machine learning algorithms. We will focus on the white and grey bots that identify themselves as such.
+We won't cover black bots because it is a huge topic with sophisticated analysis and Machine learning algorithms. We will focus on the white and grey bots that identify themselves as such.
 
-There's no reason to show a banner for a bot, right? It's pointless, waste of resources and money. What's most important is that clients don't want to pay for that and our goal is to filter bots out. There are few ways to identify bot traffic. One of the ways that became a standard in the industry is to use a defined list of User Agent strings. Let's take a look at an example.
+There's no reason to show a banner for a bot, right? It's pointless, waste of resources and money. What's the most important is that clients don't want to pay for that and our goal is to filter all bots out. There are few ways to identify bot traffic. One of the ways that became a standard in the industry is to use a defined list of User Agent strings. Let's take a look at an example.
 
-My browser's user agent string looks like this at the moment: `Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36`
+My browser's user agent string looks like this at the moment: `Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36` Yes, I use Chrome on Windows 10.
 
-One of [the Google's crawlers](https://support.google.com/webmasters/answer/1061943) has the following user agent: `Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"` As you can see Google shares information on their bots and how to identify them.
+One of [the Google's crawlers](https://support.google.com/webmasters/answer/1061943) has the following user agent: `Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"` As you can see it has `Googlebot` keyword and a link with the information about itself. Google shares information on their bots and how to identify them.
 
 
-There are various bot user agent lists available on the Internet for free. But... There's [The Interactive Advertising Bureau (IAB)](https://en.wikipedia.org/wiki/Interactive_Advertising_Bureau) which "is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry." They maintain [their own "International Spiders and Bots List"](http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/) (which costs... wait WHAT? $14000 for non-members???) The list "is required for compliance to the IAB’s Client Side Counting (CSC) Measurement Guidelines". Oh, this is what "develops industry standards" means; everything fell into place. It seems that we don't have much choice here 😀
+There are various bot user agent lists available on the Internet for free. But... There's [The Interactive Advertising Bureau (IAB)](https://en.wikipedia.org/wiki/Interactive_Advertising_Bureau) which "is an advertising business organization that develops industry standards, conducts research, and provides legal support for the online advertising industry." They maintain [their own "International Spiders and Bots List"](http://www.iab.com/guidelines/iab-abc-international-spiders-bots-list/) (which costs... wait WHAT? $14000 for non-members??? Holy moly!) The list "is required for compliance to the IAB’s Client Side Counting (CSC) Measurement Guidelines". Oh, this is what "develops industry standards" means; everything fell into place. It seems that we don't have much choice here 😀
 
 The bot list contains a list of string tokens that we can find in user agent strings. There are hundreds of those tokens. The simplified version looks like this.
 
@@ -77,7 +77,7 @@ curl
 
 All we need is to find any of those tokens in a user agent and, if there's a match, filter the request out as it comes from a bot.
 
-The feature is used in few high-load systems like [Real-time bidding](https://en.wikipedia.org/wiki/Real-time_bidding), [Ad serving](https://en.wikipedia.org/wiki/Ad_serving) and some others. This is all about banners (sigh).
+The feature is used in few high-load systems like [Real-time bidding](https://en.wikipedia.org/wiki/Real-time_bidding), [Ad serving](https://en.wikipedia.org/wiki/Ad_serving) and some others. Yes, this is all about banners (sigh).
 
 
 
@@ -85,15 +85,11 @@ The feature is used in few high-load systems like [Real-time bidding](https://en
 
 >"If you can not measure it, you can not improve it." Lord Kelvin
 
-That's basically all. Measurement is vital! It's difficult to add anything to that.
+That's basically it. Measurement is vital! It's difficult to add anything to that.
 
-Measurement is hard! Variety of versions, libraries, languages, OSes, hardware and tools only aggravate the situation.
+Measurement is hard! Variety of versions, libraries, languages, OSes, hardware, tools only aggravate the situation.
 
-Essentially you are interested in two levels, let's call them macro and micro.
-
-On macro level, metrics and macro-benchmarks help you understand how your code works in production on real data and show the real impact of changes.
-
-On micro level, microbenchmarks - are crucial. They provide fast feedback and increase confidence. They are like unit tests where performance is a feature.
+Essentially you are interested in two levels, let's call them macro and micro. On macro level, metrics and macro-benchmarks help you understand how your code works in production on real data and show the real impact of changes. On micro level, microbenchmarks are crucial. They provide fast feedback and increase confidence. They are like unit tests where performance is a feature.
 Microbenchmarking is hard!
 
 [Microbenchmarking DOs & DON'Ts from Microsoft:](https://github.com/dotnet/coreclr/blob/master/Documentation/project-docs/performance-guidelines.md#creating-a-microbenchmark)
@@ -145,10 +141,10 @@ I have a car too. But GPS sends me on 20 km detour because of traffic jams on th
 
 ## Algorithm
 
-Following the principle, we think about efficiency first. Our goal is to check whether a user agent string contains any of the given tokens. We have several hundred tokens. We perform the check once per network request. We don't need to find all patterns, to know which of them matched; we need to answer a question: yes or no. Basically, omitting all unnecessary details, our problem comes down to the multiple string matching problem.
+Following the principle, we think about efficiency first. Our goal is to check whether a user agent string contains any of the given tokens. We have several hundred tokens. We perform the check once per network request. We don't need to find all patterns or to know which of them matched; we need to answer: yes or no. Basically, omitting all unnecessary details, our problem comes down to the multiple string matching problem.
 
-Multiple string/ pattern matching problem is an important problem in many areas of computer science. For example, spam detection, filtering spam based on the content of the email, detecting keywords, is a very popular technique.
-Another applications is plagiarism detection, using pattern matching algorithms we can compare texts and detect similarities between them. An important usage appears in biology and bioinformatics area, matching of nucleotide sequences in DNA is an important application of multiple pattern matching algorithms :neckbeard: There's application in network intrusion detection systems and anti-virus software, such systems should check network traffic and disks content against large amount of malicious patterns. Aaaaaaand we have banners...
+Multiple string/ pattern matching problem is an important problem in many areas of computer science. For example, spam detection, filtering spam based on the content of an email is a very popular technique.
+Another application is plagiarism detection, using pattern matching algorithms we can compare texts and detect similarities between them. An important usage appears in biology, matching of nucleotide sequences in DNA is an important application of multiple pattern matching algorithms :neckbeard: There's application in network intrusion detection systems and anti-virus software, such systems should check network traffic and disks content against large amount of malicious patterns. Aaaaaaand we have banners...
 
 There are [several string searching algorithms](https://en.wikipedia.org/wiki/String_searching_algorithm) and few of them work with a finite set of patterns. The most suitable for our needs is [Aho–Corasick algorithm.](https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm) It was invented by Alfred V. Aho and Margaret J. Corasick back in 1975.
 
@@ -186,8 +182,8 @@ You can find documentation and how to use it [on its website](http://benchmarkdo
 
 ![PerfView]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/PerfView.png)
 
-PerfView is a general purpose performance-analysis tool for .NET.
-It's like a Swiss army knife and can do many things, from CPU and Memory profiling to heap dump analysis, from capturing ETW events to hardware counters like CPU cache misses, branch mispredictions, etc. It has an ugly interface but after few ~~days~~ weeks you will find it functional. I believe that PerfView is a great tool to have in your tool belt. It's FOSS with [the sources hosted on github.](https://github.com/Microsoft/perfview)
+PerfView is a general purpose performance analysis tool for .NET.
+It's like a Swiss army knife and can do many things, from CPU and Memory profiling to heap dump analysis, from capturing ETW events to hardware counters like CPU cache misses, branch mispredictions, etc. It has an ugly interface but after few ~~days~~ weeks you will find it functional. That's what it's called - "functional". I believe that PerfView is a great tool to have in your tool belt. It's FOSS with [the sources hosted on github.](https://github.com/Microsoft/perfview)
 
 
 
@@ -195,7 +191,7 @@ It's like a Swiss army knife and can do many things, from CPU and Memory profili
 
 ![Intel VTune Amplifier]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/IntelVTune.png)
 
-Intel VTune Amplifier is a commercial application for software performance analysis. It supports many programming languages including C#. In my opinion, it's **the best tool** for the low level performance analysis on the market. It shows not only what code CPU executes but **how** it does that. It answers not only how long CPU executes a piece of code but **why** it takes that much time. It exposes hundreds of hardware! counters and registers. It has low overhead hence. You can read about it on [the Intel website](https://software.intel.com/en-us/intel-vtune-amplifier-xe) BTW, VTune Amplifier has pretty good documentation and explanation for all major counters.
+Intel VTune Amplifier is a commercial application for software performance analysis. It supports many programming languages including C#. In my opinion, it's **the best tool** for the low-level performance analysis on the market. It shows not only what code CPU executes but **how** it does that. It answers not only how long CPU executes something but **why** it takes that much time. It exposes hundreds of hardware! counters and registers. It has low overhead hence. You can read about it on [the Intel website](https://software.intel.com/en-us/intel-vtune-amplifier-xe) BTW, VTune Amplifier has pretty good documentation and explanation for all major metrics.
 
 
 
@@ -228,7 +224,7 @@ I find [the "Debugging .NET with WinDbg"](https://docs.google.com/document/d/1yM
 
 To be fair, the feature and algorithm were implemented by another developer. My interest in this case lies mostly in the performance optimizations. You can find [the original algorithm code in this gist.](https://gist.github.com/alexandrnikitin/e4176d6b472b39155a7e0e5d68264e65)
 
-Let's quickly walk through the code and review the hot path. We have the `AhoCorasickTree` class that contains logic on how to build itself and traverse/ search for patterns. The hot path starts from the `Contains()` method. There's awkward nesting of methods. The `ref` keyword always makes me worry. Here's the excerpt code:
+Let's quickly walk through the code and review the hot path. We have the `AhoCorasickTree` class that contains logic on how to build itself and traverse/ search for patterns. The hot path starts from the `Contains()` method. There's an awkward nesting of methods. The `ref` keyword always makes me worry. Here's the excerpt code:
 
 ```csharp
 public class AhoCorasickTree
@@ -282,7 +278,7 @@ public class AhoCorasickTree
 }
 ```
 
-The tree class consists of `AhoCorasickTreeNode` nodes. The `AhoCorasickTreeNode` class backed by `Dictionary<char, AhoCorasickTreeNode>` for prefix keys and further nested nodes, it stores its results in `List<string>`.
+The tree class consists of `AhoCorasickTreeNode` nodes. The `AhoCorasickTreeNode` class backed by `Dictionary<char, AhoCorasickTreeNode>` for character keys and nested nodes, it stores its results in `List<string>`.
 
 
 ```csharp
@@ -312,7 +308,7 @@ Basically this would be enough to start with.
 
 Following the main principle, we want to have a reliable way to measure the performance and further code changes. BenchmarkDotNet will help us with that, it is as simple as installing the library via NuGet and creating a test method with a `[Benchmark]` attribute.
 
-A simple benchmark could looks like this: a common user agent string,
+A simple benchmark for a common user agent string could looks like this:
 
 ```csharp
 public class SimpleManyKeywordsBenchmark
@@ -335,7 +331,7 @@ public class SimpleManyKeywordsBenchmark
 }
 ```
 
-And the results:
+And the BenchmarkDotNet's output results:
 
 
 ``` ini
@@ -355,9 +351,9 @@ TargetCount=20  WarmupCount=20
 
 This means that we need only 6 microsecond to check a common user agent string against several hundreds of patterns. We can do ~150K calls per second on one CPU Core which is pretty fast and good enough. But can we do better?
 
-## APIs TODO
+## Libraries APIs
 
-The attentive reader may have noticed, that there's the following code in the hot path:
+The attentive reader may have noticed during the code review that there's the following code in the hot path:
 
 ```csharp
 public AhoCorasickTreeNode GetTransition(char c)
@@ -368,7 +364,7 @@ public AhoCorasickTreeNode GetTransition(char c)
 }
 ```
 
-We have two calls to the dictionary: one to check whether the dictionary has the key or not, and then we get the next node. But we all know that there is a single method that can do both at once - `bool TryGetValue(TKey key, out TValue value)`. Let's fix that:
+We have two calls to the dictionary: one to check whether the dictionary has the key or not, and then we get the next node. But we all know that there is a single method that can do both at once: `bool TryGetValue(TKey key, out TValue value)`. Let's fix that:
 
 ```csharp
 public AhoCorasickTreeNode GetTransition(char c)
@@ -390,7 +386,7 @@ This was easy, almost 5% improvement just using proper API methods. Lesson learn
 
 ## CLR internals
 
-Let's start from a high-level analysis and try to understand how the code performs. PerfView is the best tool for the high-level general purpose analysis. What we need is to create an isolated console application that executes the code in a loop with close to production usage. Let's launch PerfView and profile the application using it.
+Let's start from the high-level analysis and try to understand how the code performs. PerfView is the best tool for the high-level general purpose analysis. What we need is to create an isolated console application that executes the code in a loop with close to production usage. Let's launch PerfView and profile the application using its functional UI.
 
 ![PerfViewCollect]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/PerfViewCollect.png)
 
@@ -402,7 +398,7 @@ Hmmm... That's not what I would expect. We iterate over a string and traverse a 
 
 ![AllocationStack]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/AllocationStack.png)
 
-We find that we allocate an instance of `Enumerator[String]` class which is `List<String>.Enumerator` in our case. Wait a second?! We all know that List's enumerator is a `struct`. How is that possible to have a struct on the heap? Let's go up the stack and find that out. The `Any<T>` IEnumerable extension implementation:
+We find that we allocate an instance of `Enumerator[String]` class, which is `List<String>.Enumerator` in our case, in the `Any<T>()` method. Wait a second?! We all know that List's enumerator is a `struct`. How is that possible to have a struct on the heap? Let's go up the stack and find that out. The `Any<T>` IEnumerable extension implementation:
 
 ```csharp
 public static bool Any<TSource>(this IEnumerable<TSource> source)
@@ -417,7 +413,7 @@ public static bool Any<TSource>(this IEnumerable<TSource> source)
 }
 ```
 
-Here we call the `IEnumerable<TSource>`'s `GetEnumerator()` method to get an enumerator. The List's `GetEnumerator()` implementation:
+Here we call the `GetEnumerator()` method to get an enumerator. The List's `GetEnumerator()` implementation:
 
 ```csharp
 public class List<T> : ... IEnumerable<T> ...
@@ -440,7 +436,7 @@ IL_0006: box valuetype System.Collections.Generic.List`1/Enumerator<!T>
 IL_000b: ret
 ```
 
-Indeed we clearly see the `box`ing operation. The reason for the boxing is that calls to interface methods happen via [a Virtual Method Table](https://en.wikipedia.org/wiki/Virtual_method_table). The compiler doesn't know the type behind the interface. A value type doesn't have a virtual method table by nature; to obtain one it has to become a reference type with all its consequences like header, method table, heap allocation.
+Indeed we clearly see the `box`ing operation. The reason for the boxing is that calls to interface methods happen via [a Virtual Method Table](https://en.wikipedia.org/wiki/Virtual_method_table). The compiler doesn't know the type behind the interface. A value type doesn't have a virtual method table by nature; to obtain one it has to become a reference type with all its consequences like a header, method table, heap allocation.
 
 Knowing that fact, the fix is quite easy, let's get rid of the `IEnumerable<T>` interface for the sake of the exact `List<T>` type and check for `Count > 0` instead of `Any()`.
 
@@ -449,20 +445,20 @@ Knowing that fact, the fix is quite easy, let's get rid of the `IEnumerable<T>` 
 |   Control | 5.7016 us | 0.0669 us | 5.6759 us |   1.00 |          0.00 |
 | Treatment | 2.8440 us | 0.0357 us | 2.8433 us |   0.50 |          0.01 |
 
-Wow, that's 2 times faster! We achieved that just joggling .NET internals.
+Wow, that's 2 times faster! We achieved that just joggling .NET internals. Lesson learnt: It's important to understand how CLR works.
 
 
 
-## BCL data structures
+## BCL Data Structures
 
 Now it's time to find the bottleneck of the code. Let's launch PerfView again and profile the application. At this time we are interested in the "CPU Stacks" view:
 
 ![BottleneckDictionary]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/BottleneckDictionary.png)
 
 
-PerfView shows that the bottleneck is in the BCL `Dictionary` data structure. This will stop most developers from further optimizations. Dictionary (a hash table) is an awesome data structure. It's generic; it's fast; it's efficient memory-wise. It was bestowed upon us from above.
+PerfView shows that the bottleneck is in the BCL `Dictionary` data structure. This will stop most developers from further work. Dictionary (a hash table) is an awesome data structure. It's generic, it's fast, it's efficient memory-wise. It was bestowed upon us from the above! 😇
 
-But, out of curiosity, let's take a look at how it work under the hood.
+But, out of curiosity, let's take a look at how it works under the hood.
 The `TryGetValue` method, identified as the bottleneck, calls the `FindEntry` method under the hood which looks like this:
 
 ```csharp
@@ -496,7 +492,7 @@ Dictionary<TKey, TValue>.TryGetValue()
 
 That's intelligible. `Dictionary` is a generic general purpose data structure, it must handle any type and any scale equally well. But we know all our types, hence we don't need that generic solution.
 
-Let's just re-implement a classic hash table for the `char` type. All we need is an array for buckets which points to an array of values. Basically we removed all unnecessary code and flatten the call stack. The code in that case could look like this:
+Let's just re-implement a classic hash table for the `char` type and inline it into the `AhoCorasickTreeNode` class. All we need is an array for buckets which points to an array of values. Basically we removed all unnecessary code and flatten the call stack. The code in that case could look like this:
 
 ```csharp
 internal class AhoCorasickTreeNode
@@ -532,7 +528,7 @@ The benchmark results:
 | Treatment | 1.7416 us | 0.0216 us |   0.63 |          0.01 |
 
 
-Yeah, that's 1.6 time faster than the previous version. So far so good.
+Yeah, that's 1.6 time faster than the previous version. So far so good. Lesson learnt: BCL has general purpose code; it may be useful to re-implement some code for your needs.
 
 
 
@@ -542,9 +538,9 @@ Now we came to the point when it's important to understand how CPU works to perf
 
 ![CPU]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/CPU.jpg)
 
-Yes, a modern CPU is a complex beast and I'm not in a position to explain how it works, especially within a blog post. I just want to give a starting point, from where you can start the journey. One of the best starting points is [the "Central processing unit" wikipedia page.](https://en.wikipedia.org/wiki/Central_processing_unit)
+Yes, a modern CPU is a complex beast and I'm not in a position to explain you how it works, especially within a blog post. I just want to give a starting point, from where you can start the journey. One of the best starting points is [the "Central processing unit" wikipedia page.](https://en.wikipedia.org/wiki/Central_processing_unit)
 
-In few words, CPU is a message passing system with multiple cache layers. Accessing each next cache layer is much slower than the previous one.  For example, cache layers and latency for my Intel i7-4770 (Haswell) 3.4 GHz are the following:
+In few words, CPU is a message passing system with multiple cache layers. Accessing next cache layer is much slower than the previous one. CPU cores exchange messages to keep cache coherent. For example, cache layers and latency for my Intel i7-4770 (Haswell) are the following:
 
 ```ini
 Caches:
@@ -562,11 +558,11 @@ L3 Cache Latency = 36 cycles
 RAM Latency = 36 cycles + 57 ns
 ```
 
-Essentially, CPU can be divided into the Front-end and the Back-end. The Front-end is where instructions are fetched and decoded. The Back-end is where the computation performed. That concept drives all CPU optimizations. For example the Front-end can rearranges the order in which instructions are executed; it can try to predict branches and speculatively push more instructions, even if they may not be needed. The Back-end in its turn has several parallel execution units: arithmetic logic unit (ALU), floating-point unit (FPU), load-store unit (LSU), etc; It's capable of executing few instruction per cycle.
+Essentially, CPU can be divided into the Front-end and the Back-end. The Front-end is where instructions are fetched and decoded. The Back-end is where the computation performed. That concept drives all CPU optimizations. For example the Front-end can rearrange the order in which instructions are executed; it can try to predict branches and speculatively push more instructions, even if they may not be needed. The Back-end in its turn has several parallel execution units, e.g., arithmetic logic unit (ALU), floating-point unit (FPU), load-store unit (LSU); It's capable of executing few instruction per cycle.
 
 
 
-### Max FLOPs/cycle
+### Maximum IPC (instructions per cycle)
 
 There's [a question on Stack Overflow](http://stackoverflow.com/questions/8389648/how-do-i-achieve-the-theoretical-maximum-of-4-flops-per-cycle), a developer asks a pretty serious and interesting question: "How to achieve the theoretical maximum number of operations per CPU cycle?"
 
@@ -594,17 +590,17 @@ At this point PerfView won't show us any useful insight. It's time for the heavy
 
 
 **The General Exploration analysis** helps identify hardware issues affecting the performance. It collects a comprehensive list of CPU hardware registers available for analysis. It's a good starting point when you do hardware-level analysis. It can help you understand how efficiently your code is executing.
-It provides a neat summary view, from where you can start analyzing issues:
+It provides a neat summary view, from where you can start analyzing issues. For our latest version it produced the following summary:
 
 ![VTune Amplifier General Exploration analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneGE.png)
 
 
-**Memory Access** analysis helps identify memory-related issues, like CPU cache misses, NUMA problems and bandwidth-limited accesses. It uses hardware event-based sampling to collect data for memory-related metrics: like loads and stores, LLC Misses, L1/L2/L3/DRAM bound metrics, etc. The summary oveview looks like this:
+**Memory Access** analysis helps identify memory-related issues, like CPU cache misses, NUMA problems and bandwidth-limited accesses. It uses hardware event-based sampling to collect data for memory-related metrics: loads and stores, LLC Misses, L1/L2/L3/DRAM bound metrics, etc. The summary overview for our code looks like this:
 
 ![VTune Amplifier Memory analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneMA.png)
 
 
-As we can see from the both analyses, our code is memory bounded. There are a lot of CPU cache misses. Let's try to understand why we have them in the first place, and then let's think how to address it. I put comments in the code to explain this:
+As we can see from the both analyses, our code is memory bounded. There are a lot of CPU cache misses. Let's try to understand why we have them in the first place, and then let's think how to address it. I put comments in the code to explain the CPU cache misses:
 
 ```csharp
 internal class AhoCorasickTreeNode
@@ -618,10 +614,10 @@ internal class AhoCorasickTreeNode
 
   public AhoCorasickTreeNode GetTransition(char c)
   {
-      // access the bucket array's Length field
+      // access the length of the bucket array's
       var bucket = c % _buckets.Length;
 
-      // access a "bucket"th element of the array
+      // access an element of the bucket array
       for (int i = _buckets[bucket]; i >= 0; i = _entries[i].Next)
       {
           // access the value array somewhere on the heap
@@ -641,19 +637,19 @@ internal class AhoCorasickTreeNode
 }
 ```
 
-Just to extend all that a bit further, .NET is the safety-first platform. That means .NET ensures that your code won't access memory not intended for you.
-For instance in `_entries[i].Key` it must ensure that you won't access a memory outside of the array. Hence .NET adds a range check that looks something like `if (i < 0 || i >= _entries.Length) throw ...`. That means that, even if you access an element in the middle, it needs to load the beginning of the array where `Length` stored.
+Just to extend all that a bit further, .NET is a **safety-first** platform. This means .NET ensures that your code won't access memory not intended for you.
+For instance in `_entries[i].Key` it must ensure that you won't access memory outside of the array. To achieve this, .NET adds a range check that looks like `if (i < 0 || i >= _entries.Length) throw ...`. This means that, even if you access an element in the middle, it needs to load the beginning of the array where the `Length` is stored. It leads to more loads (and cache misses).
 
 
 ### Solution
 
 What can we do about all that? Hmm... we can have just one array, can't we? We can put our values into the bucket array. What about hash collision resolution then?
 
-It turns out, there's another method of collision resolution in hash tables called ["Open addressing."](https://en.wikipedia.org/wiki/Open_addressing) With this method a hash collision is resolved by probing, or searching through alternate locations in the array. There are few probing approaches, e.g, Linear, Quadratic, Double hashing, etc. The most CPU cache-friendly method is the Linear one which just put an element into the next available bucket.
+It turns out, there's another method of collision resolution in hash tables called ["Open addressing."](https://en.wikipedia.org/wiki/Open_addressing) With this method a hash collision is resolved by probing, or searching through alternate locations in the array. There are few probing approaches, e.g, Linear, Quadratic, Double hashing, etc. The most CPU cache-friendly method is the Linear one that just puts an element into the next available bucket.
 
-Open addressing is not a silver bullet, of course, and has drawbacks. It is a poor choice for large size elements because they pollute cache. Its performance dramatically degrades when the load factor grows beyond 0.7 and more.
+Open addressing is not a silver bullet, of course, and has drawbacks. It is a poor choice for large size elements because they pollute cache. Its performance dramatically degrades when the load factor grows.
 
-It's all about trade offs. And it seems that Open addressing if the perfect choice for us: it's cache-friendly, our value record is small, just a pointer, we can control the load factor. Let's implement it and take a look at the benchmark results:
+It's all about trade offs. And it seems that Open addressing if the perfect choice for us: it's cache-friendly, our value record is small (just a pointer), we can control the load factor. Let's implement it and take a look at the benchmark results:
 
 |    Method |          Mean |     StdDev |        Median | Scaled | Scaled-StdDev |
 |---------- |-------------- |----------- |-------------- |------- |-------------- |
@@ -665,11 +661,11 @@ VTune also confirms that we aren't memory bound anymore.
 
 ## Hacks
 
-Performance optimization is an iterative process. Let's take a look at the General Exploration analysis of the current state again:
+Performance optimization is an iterative process. Let's take a look at the General Exploration analysis of the latest optimized version again:
 
 ![General Exploration - Divider]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneGEDivider.png)
 
-We can spot that VTune Amplifier highlighted the Divider unit, it shows us that almost 50% of execution time spent there. Some arithmetic operations like division and square root take considerably longer than addition or multiplication, and performed by the DIV unit. Indeed we have a modulo operation in the following code that calculates an index into an array of entries:
+We can spot that VTune Amplifier highlighted the Divider unit, it shows us that almost 50% of execution time spent there. Some arithmetic operations like division and square root take considerably longer than addition or multiplication. They performed by the DIV unit. Indeed, we have a modulo operation in the following code that calculates an index into an array of entries:
 
 ```csharp
 public AhoCorasickTreeNode GetTransition(char c)
@@ -681,7 +677,7 @@ public AhoCorasickTreeNode GetTransition(char c)
 }
 ```
 
-That compiles to the following assembly code by RuyJIT:
+WinDbg will help us understand what it compiles to. The code above compiles to the following assembly code by RuyJIT:
 
 ```ini
 ...
@@ -696,7 +692,7 @@ mov eax, edx ; result to eax
 
 `idiv` instruction consumes considerably more CPU cycles than `mov` or `add` for example. It can be from 20 to 100 cycles depending on CPU and register size.
 
-VTune Amplifier gives the clue: "The DIV unit is active for a significant portion of execution time. Locate the hot long-latency operation\(s\) and try to eliminate them. For example, if dividing by a constant, consider replacing the divide by a product of the inverse of the constant. If dividing an integer, see whether it is possible to right-shift instead." Let's replace our modulo operation with a well known bit hack; our code becomes like this:
+VTune Amplifier gives the clue: "The DIV unit is active for a significant portion of execution time. Locate the hot long-latency operation\(s\) and try to eliminate them. For example, if dividing by a constant, consider replacing the divide by a product of the inverse of the constant. If dividing an integer, see whether it is possible to right-shift instead." Let's replace our modulo operation with a well known bit hack; the modulo of powers of 2 can be replaced by a bitwise `AND` operation. Our code becomes like this:
 
 ```csharp
 public AhoCorasickTreeNode GetTransition(char c)
@@ -733,43 +729,23 @@ for (var i = 0; i < 1000000; i++)
 
 The data structure, we are optimizing, is small and less than 32Kb that perfectly fits into L1 CPU cache. In a tight loop all the data resides in the L1 cache that makes it almost free to access (just few cycles). This hides all memory related issues and expose wrong bottlenecks. The code has completely different load profile in production. We access the data structure only once per network request. There is a bunch of other business logic around it, where we read, write and allocate a lot of data. All this means that both the L1 and the L2 CPU caches don't have the data readily available. Most probably, even the L3 CPU has just a part of it, causing the CPU to stall while waiting for data.
 
-Having said that, we saw a skewed picture and analyzed incorrect bottlenecks. For instance, the recent division optimization won't be so useful in the wild, the CPU stalls and waits for the data to be transferred from RAM to L3, then to L2, then to L1 and finally to registers.
+Having said that, we saw a skewed picture and analyzed incorrect bottlenecks. For instance, the recent division optimization won't be so useful in the wild, the CPU stalls and waits for the data to be transferred from RAM to L3, then to L2, then to L1 and finally to CPU registers.
 
-Let's take a moment and look at what we have. We built a tree; the tree consists of nodes. A node is a class, that means it's stored somewhere on the heap. A node (hash table) contains an array of keys and value, that array is also stored on the heap. All those node classed and arrays scattered around the heap without a clear access pattern. Accessing them CPU needs to request the memory which could lead to a number of expensive cache misses.
+
+### CPU-friendly code
+
+Let's take a moment and look at what we have. We built a tree; the tree consists of nodes. A node is a class, it's stored somewhere on the heap. A node (hash table) contains an array of keys and value, that array is also stored on the heap. All those node classed and arrays scattered around the heap without a clear access pattern. Accessing them CPU needs to request the memory which could lead to a number of expensive cache misses.
 
 What can we do here? We can make the CPU help us!
-Modern CPUs perform [the data prefetching optimization](https://en.wikipedia.org/wiki/Cache_prefetching) to improve execution performance. CPU can load instructions or data to a cache before it is actually needed. We need to make the CPU easy to reason about our memory access pattern, and consume the data sequentially. Every tree can be put into array, right? Why don't we put the whole tree into one array?
+Modern CPUs perform [the data prefetching optimization](https://en.wikipedia.org/wiki/Cache_prefetching) to improve execution performance. CPU can load instructions or data to a cache before it is actually needed. We need to make the memory access pattern easy to reason about for the CPU. The easiest and usually the fastest pattern is the sequential access. Every tree can be put into array, right? Why don't we put the whole tree into one array?
+
+As a side note, there's the Software based prefetching too. The compiler can issue the prefetch instructions for the CPU. Unfortunately RyuJIT doesn't support that yet; but it's OSS and, who knows, may be you are [the one who will bring the support in.](https://github.com/dotnet/coreclr/issues/5025)
 
 All that justify us to go unsafe!
 
 ![Unsafe]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Unsafe.jpg)
 
 
-```
-[[size, failure, [pointertoNode, key, isPattern]]]
-
-```
-
-The code that works with the unsafe array looks ugly and I'm not proud of it:
-
-```csharp
-private unsafe byte GetKey(byte* currentNodePtr, int ind)
-{
-    return *(byte*)(currentNodePtr + SizeOfSize + SizeOfFailure + ind * (SizeOfKey + SizeOfNode));
-}
-
-private unsafe byte* GetNext(byte* b, byte* currentNodePtr, int ind)
-{
-    return b + *(char*)(currentNodePtr + (SizeOfSize + SizeOfFailure + ind * (SizeOfKey + SizeOfNode) + SizeOfKey));
-}
-
-private unsafe byte* GetFailure(byte* b, byte* currentNodePtr)
-{
-    return b + *(char*)(currentNodePtr + SizeOfSize);
-}
-```
-
-TODO explain array
 
 ### String traversal
 
@@ -838,9 +814,78 @@ It gives us 2 times faster traversal in a benchmark:
 |  TraverseUnsafe |  70.7301 ns | 0.1986 ns |  70.6969 ns |   0.53 |          0.00 |
 
 
+
+### Some code:
+
+Having said all that,
+
+The flattened tree in the array could look like:
+
+```
+[
+  Node1: [Size, Failure Index, [Node Index, Key, Is Pattern End]]]
+
+```
+
+The code looks ugly and I'm not proud of it, but performance you know.
+
+```csharp
+
+public class AhoCorasickTreeSlim
+{
+    private readonly byte[] _data;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private unsafe byte GetKey(byte* currentNodePtr, int ind)
+    {
+        return *(byte*)(currentNodePtr + SizeOfSize + SizeOfFailure + ind * (SizeOfKey + SizeOfNode));
+    }
+
+...
+
+    public unsafe bool Contains(string text)
+    {
+        fixed (byte* b = _data)
+        fixed (char* p = text)
+        {
+            var len = text.Length * 2;
+            var currentNodePtr = b;
+            var cptr = p;
+            while (len > 0)
+            {
+                var c = *cptr;
+                cptr++;
+                len -= 2;
+
+                CheckFailure:
+                var size = *currentNodePtr;
+                var ind = c & (size - 1);
+                var key = GetKey(currentNodePtr, ind);
+                if (key == c)
+                {
+                    currentNodePtr = GetNext(b, currentNodePtr, ind);
+                    if (currentNodePtr == b) return true;
+                }
+                else
+                {
+                    currentNodePtr = GetFailure(b, currentNodePtr);
+                    if (currentNodePtr != b) goto CheckFailure;
+                }
+            }
+
+        }
+
+        return false;
+    }
+
+}
+
+```
+
+
 ### How to measure?
 
-We've made some improvement again. But... how to measure these changes in the wild? Unfortunately we are stuck in the situation where microbenchmarking doesn't show us the real picture and became useless. Also it's quite difficult to measure and profile changes and their impact in the wild. The only way is to employ CPU hardware counters. We already identified the bottleneck as LLC (last-level cache) misses. We are going to monitor only this counter via VTune Amplifier Custom analysis. Intel VTune Amplifier allow us
+We've made some improvement again. But... how to measure these changes? Unfortunately we are stuck in the situation where microbenchmarking doesn't show us the real picture and became useless. Also it's quite difficult to measure and profile changes and their impact in the wild. The only way is to employ CPU hardware counters. We already identified the bottleneck as LLC (last-level cache) misses. We are going to monitor only this counter via VTune Amplifier Custom analysis. Intel VTune Amplifier allow us
 
 As simple as selecting interesting hardware events out of hundreds of them:
 
@@ -879,19 +924,6 @@ Shows only 1.5 million LLC misses. We managed to reduce number of LLC misses by 
 
 ## Summary
 
-We improved performance by probably more than 15-20 times using various techniques: from simple API to ... TODO
+To summarize the journey, we improved the performance by probably more than 20 times at the end. We used various techniques: from a simple API change to re-implementing a BCL data structure, from an advanced data structure to a bit hack, from admitting our own mistakes to making the algorithm more CPU-friendly.
 
-
-What's next? further compacting,
-
-We are at the point when it's impossible to reliably benchmark the code and it's quite difficult to profile it and measure the impact of changes.
-All further optimization steps should be focused on reducing LLC misses and can include compacting the array size, generating the perfect hash function,
-
-
-compacting the array
-Generate the perfect hash function
-ASCII -> Bitmasks
-SIMD
-TODO [software prefetch](https://github.com/dotnet/coreclr/issues/5025)
-
-In 99% cases the bottleneck is a developer not a platform
+What can we do next? Obviously, further compacting the data structure will improve the performance because we simply need to load less data. We can find the perfect hash function to have less hash collisions. We can do it programmatically as we know our data beforehand. If we study the data we find out that it's ASCII only and most of the patterns consist of English characters with few exceptions. Therefore we can create bit masks for them and use bitwise operations. To evolve it further we could use SIMD (Single instruction, multiple data) instructions and check few input characters at once. But all that is another story.
