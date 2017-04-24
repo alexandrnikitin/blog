@@ -3,7 +3,7 @@ layout: single
 title: "High-performance .NET by example: Filtering bot traffic"
 date: 2017-04-24
 categories: [.NET, Algorithms]
-excerpt: "Mistakes and lessons from the real-world feature performance optimizations: from BCL API usage to advanced data structures, from bit hacks to making code CPU-friendlier."
+excerpt: "Mistakes and lessons from a real-world feature performance optimizations: from API usage to advanced data structures, from bit hacks to CPU-friendlier code."
 tags: [.NET, High-performance]
 comments: true
 share: true
