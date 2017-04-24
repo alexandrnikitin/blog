@@ -29,7 +29,6 @@ If you find it interesting you can continue reading or jump to any of the sectio
 
 - [Domain](#domain)
 - [Measure, measure, measure!](#measure-measure-measure)
-- [First efficiency then performance](#first-efficiency-then-performance)
 - [Algorithm](#algorithm)
 - [Tools](#tools)
 - [Performance optimizations](#performance-optimizations)
@@ -124,24 +123,9 @@ Hardware: ...
 
 
 
-## First efficiency then performance
-
-This is the second most important aspect in all performance stories. Efficiency means how much work you need to do. Performance means how fast you do the work. The main goal is to reduce the amount of work to be done. And only then do it fast.
-
-![Indian Pacific Wheel Race]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Bicycle.jpg)
-
-
-The best analogy is commuting to work. I live in 10 km away from my office. I usually commute on a bicycle and choose the direct route without obstacles like traffic lights or traffic jams. I pedal at 20 km/h at average which takes me to the office in 30 minutes. I think I'm quite efficient because I choose the shortest route. But I can be faster of course.
-
-I have a car too. But GPS sends me on 20 km detour because of traffic jams on the main road. The average speed is low because of traffic. The parking isn't near the office. Yes, a car is obviously much faster than a bicycle. But because of the amount of work and other obstacles, it usually takes me more time to get to the office.
-
-~~It's all about tradeoffs at the end.~~
-
-
-
 ## Algorithm
 
-Following the principle, we think about efficiency first. Our goal is to check whether a user agent string contains any of the given tokens. We have several hundred tokens. We perform the check once per network request. We don't need to find all patterns or to know which of them matched; we need to answer: yes or no. Basically, omitting all unnecessary details, our problem comes down to the multiple string matching problem.
+Before any performance optimization (How fast?) we think about efficiency (How much work do we need to do?). Our goal is to check whether a user agent string contains any of the given tokens. We have several hundred tokens. We perform the check once per network request. We don't need to find all patterns or to know which of them matched; we need to answer: yes or no. Basically, omitting all unnecessary details, our problem comes down to the multiple string matching problem.
 
 Multiple string/ pattern matching problem is an important problem in many areas of computer science. For example, spam detection, filtering spam based on the content of an email is a very popular technique.
 Another application is plagiarism detection, using pattern matching algorithms we can compare texts and detect similarities between them. An important usage appears in biology, matching of nucleotide sequences in DNA is an important application of multiple pattern matching algorithms :neckbeard: There's application in network intrusion detection systems and anti-virus software, such systems should check network traffic and disks content against large amount of malicious patterns. Aaaaaaand we have banners...
@@ -154,11 +138,11 @@ Key features of the Aho–Corasick algorithm:
 - accepts a finite set of patterns
 - matches all patterns simultaneously
 - constructs a finite state machine from patterns backed by [a Trie](https://en.wikipedia.org/wiki/Trie)
-- additional "failure" links between nodes that allows to continue traversal in case of match failure
+- constructs additional "failure" links between nodes that allows to continue traversal in case of match failure
 
 "The complexity of the algorithm is linear in the length of the strings plus the length of the searched text plus the number of output matches. Note that because all matches are found, there can be a quadratic number of matches if every substring matches" We aren't interested in the output and can stop when any match is found; the complexity is much better for us.
 
-The algorithm was used in the `fgrep` utility (an early version of `grep`). You can play with [the animated version of the algorithm here.](http://blog.ivank.net/aho-corasick-algorithm-in-as3.html)
+The algorithm was used in the `fgrep` utility (an early version of `grep`). You can play with [an animated version of the algorithm here.](http://blog.ivank.net/aho-corasick-algorithm-in-as3.html)
 
 
 
@@ -168,7 +152,7 @@ The algorithm was used in the `fgrep` utility (an early version of `grep`). You 
 
 ## BenchmarkDotNet
 
-![BenchmarkDotNet]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/BenchmarkDotNet.png)
+![BenchmarkDotNet]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/benchmarkdotnet.png)
 
 BenchmarkDotNet is a powerful FOSS .NET library for benchmarking. It is like NUnit for unit tests, it provides fast feedback for code changes. I believe that it's a must to have it in your solution even if you don't write high-performance code.
 
@@ -180,7 +164,7 @@ You can find documentation and how to use it [on its website](http://benchmarkdo
 
 ## PerfView
 
-![PerfView]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/PerfView.png)
+![PerfView]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/perfview.png)
 
 PerfView is a general purpose performance analysis tool for .NET.
 It's like a Swiss army knife and can do many things, from CPU and Memory profiling to heap dump analysis, from capturing ETW events to hardware counters like CPU cache misses, branch mispredictions, etc. It has an ugly interface but after few ~~days~~ weeks you will find it functional. That's what it's called - "functional". I believe that PerfView is a great tool to have in your tool belt. It's FOSS with [the sources hosted on github.](https://github.com/Microsoft/perfview)
@@ -189,7 +173,7 @@ It's like a Swiss army knife and can do many things, from CPU and Memory profili
 
 ## Intel VTune Amplifier
 
-![Intel VTune Amplifier]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/IntelVTune.png)
+![Intel VTune Amplifier]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/intel-vtune.png)
 
 Intel VTune Amplifier is a commercial application for software performance analysis. It supports many programming languages including C#. In my opinion, it's **the best tool** for the low-level performance analysis on the market. It shows not only what code CPU executes but **how** it does that. It answers not only how long CPU executes something but **why** it takes that much time. It exposes hundreds of hardware! counters and registers. It has low overhead hence. You can read about it on [the Intel website](https://software.intel.com/en-us/intel-vtune-amplifier-xe) BTW, VTune Amplifier has pretty good documentation and explanation for all major metrics.
 
@@ -197,7 +181,7 @@ Intel VTune Amplifier is a commercial application for software performance analy
 
 ## ILSpy
 
-![ILSpy]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/ILSpy.png)
+![ILSpy]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/ilspy.png)
 
 "ILSpy is the open-source .NET assembly browser and decompiler." It is a great tool, simple and easy to use; very useful when you want to understand how C# compiler compiles your code.
 
@@ -207,7 +191,7 @@ To be fair, there are other free and great tools like dotPeek or JustDecompile. 
 
 ## WinDbg
 
-![WinDbg]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/WinDbg.png)
+![WinDbg]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/windbg.png)
 
 WinDbg - the great and powerful! It is a powerful debugging and exploring tool for Windows. It can be used to debug user applications, device drivers, and the operating system itself. I use it to understand CLR internals, get assembly code, analyze process dumps or debug an ugly problem.
 
@@ -222,7 +206,7 @@ I find [the "Debugging .NET with WinDbg"](https://docs.google.com/document/d/1yM
 
 ## Performance optimizations
 
-To be fair, the feature and algorithm were implemented by another developer. My interest in this case lies mostly in the performance optimizations. You can find [the original algorithm code in this gist.](https://gist.github.com/alexandrnikitin/e4176d6b472b39155a7e0e5d68264e65)
+To be fair, the feature and algorithm were implemented by another developer. My interest in this case lies mostly in the performance field. You can find [the original algorithm code in this gist.](https://gist.github.com/alexandrnikitin/e4176d6b472b39155a7e0e5d68264e65)
 
 Let's quickly walk through the code and review the hot path. We have the `AhoCorasickTree` class that contains logic on how to build itself and traverse/ search for patterns. The hot path starts from the `Contains()` method. There's an awkward nesting of methods. The `ref` keyword always makes me worry. Here's the excerpt code:
 
@@ -351,9 +335,9 @@ TargetCount=20  WarmupCount=20
 
 This means that we need only 6 microsecond to check a common user agent string against several hundreds of patterns. We can do ~150K calls per second on one CPU Core which is pretty fast and good enough. But can we do better?
 
-## Libraries APIs
+## APIs of Libraries
 
-The attentive reader may have noticed during the code review that there's the following code in the hot path:
+During the code review, the attentive reader may have noticed that there's the following code in the hot path:
 
 ```csharp
 public AhoCorasickTreeNode GetTransition(char c)
@@ -388,15 +372,15 @@ This was easy, almost 5% improvement just using proper API methods. Lesson learn
 
 Let's start from the high-level analysis and try to understand how the code performs. PerfView is the best tool for the high-level general purpose analysis. What we need is to create an isolated console application that executes the code in a loop with close to production usage. Let's launch PerfView and profile the application using its functional UI.
 
-![PerfViewCollect]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/PerfViewCollect.png)
+![PerfViewCollect]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/perfview-collect.png)
 
 PerfView shows a lot of useful .NET related (and system wide) information. For example JIT and GC stats. For instance, we can take a look at the activity of the GC in the "GCStats" view under the "Memory Group" folder. If we open the view for our application it shows us that the GC is pretty busy allocating and cleaning garbage up:
 
-![Allocations]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Allocations.png)
+![Allocations]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/allocations.png)
 
 Hmmm... That's not what I would expect. We iterate over a string and traverse a prebuilt Trie. Why would we ever need to allocate anything just to traverse the tree?? Luckily PerfView is able to trace allocation object stack traces. Let's enable the ".NET SampleAlloc" option and switch to the "GC Heap Net Mem stacks" view. If we take a look at the allocation stacktrace:
 
-![AllocationStack]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/AllocationStack.png)
+![AllocationStack]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/allocation-stack.png)
 
 We find that we allocate an instance of `Enumerator[String]` class, which is `List<String>.Enumerator` in our case, in the `Any<T>()` method. Wait a second?! We all know that List's enumerator is a `struct`. How is that possible to have a struct on the heap? Let's go up the stack and find that out. The `Any<T>` IEnumerable extension implementation:
 
@@ -436,9 +420,9 @@ IL_0006: box valuetype System.Collections.Generic.List`1/Enumerator<!T>
 IL_000b: ret
 ```
 
-Indeed we clearly see the `box`ing operation. The reason for the boxing is that calls to interface methods happen via [a Virtual Method Table](https://en.wikipedia.org/wiki/Virtual_method_table). The compiler doesn't know the type behind the interface. A value type doesn't have a virtual method table by nature; to obtain one it has to become a reference type with all its consequences like a header, method table, heap allocation.
+Indeed we clearly see the `box`ing operation. The reason for the boxing is that **a call to an interface method happens via [a Virtual Method Table](https://en.wikipedia.org/wiki/Virtual_method_table)**. The compiler doesn't know the type behind the interface. A value type doesn't have a virtual method table by nature; to obtain one it has to become a reference type with all its consequences like a header, method table, heap allocation.
 
-Knowing that fact, the fix is quite easy, let's get rid of the `IEnumerable<T>` interface for the sake of the exact `List<T>` type and check for `Count > 0` instead of `Any()`.
+Knowing this fact, the fix is quite easy, let's get rid of the `IEnumerable<T>` interface for the sake of the exact `List<T>` type and check for `Count > 0` instead of `Any()`.
 
 |    Method |      Mean |    StdDev |    Median | Scaled | Scaled-StdDev |
 |---------- |---------- |---------- |---------- |------- |-------------- |
@@ -453,7 +437,7 @@ Wow, that's 2 times faster! We achieved that just joggling .NET internals. Lesso
 
 Now it's time to find the bottleneck of the code. Let's launch PerfView again and profile the application. At this time we are interested in the "CPU Stacks" view:
 
-![BottleneckDictionary]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/BottleneckDictionary.png)
+![BottleneckDictionary]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/bottleneck-dictionary.png)
 
 
 PerfView shows that the bottleneck is in the BCL `Dictionary` data structure. This will stop most developers from further work. Dictionary (a hash table) is an awesome data structure. It's generic, it's fast, it's efficient memory-wise. It was bestowed upon us from the above! 😇
@@ -536,7 +520,7 @@ Yeah, that's 1.6 time faster than the previous version. So far so good. Lesson l
 
 Now we came to the point when it's important to understand how CPU works to perform analyses and optimizations. Here's a necessary picture to show how complex CPUs are:
 
-![CPU]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/CPU.jpg)
+![CPU]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/cpu.jpg)
 
 Yes, a modern CPU is a complex beast and I'm not in a position to explain you how it works, especially within a blog post. I just want to give a starting point, from where you can start the journey. One of the best starting points is [the "Central processing unit" wikipedia page.](https://en.wikipedia.org/wiki/Central_processing_unit)
 
@@ -566,15 +550,15 @@ Essentially, CPU can be divided into the Front-end and the Back-end. The Front-e
 
 There's [a question on Stack Overflow](http://stackoverflow.com/questions/8389648/how-do-i-achieve-the-theoretical-maximum-of-4-flops-per-cycle), a developer asks a pretty serious and interesting question: "How to achieve the theoretical maximum number of operations per CPU cycle?"
 
-![Stackoverflow Question]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/StackoverflowQuestion.png)
+![Stackoverflow Question]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/stackoverflow-question.png)
 
 But [the answer](http://stackoverflow.com/a/8391601/974487) is rather entertaining, another developer has achieved that but to measure CPU temperature 😆
 
-![Stackoverflow Answer]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/StackoverflowAnswer.png)
+![Stackoverflow Answer]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/stackoverflow-answer.png)
 
 His code looks like this:
 
-![Stackoverflow Code]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/StackoverflowCode.png)
+![Stackoverflow Code]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/stackoverflow-code.png)
 
 And many more lines like that. That's basically assembly code written in C++ that works directly with CPU registers and instructions. It is amazing how much power and control C++ gives you. The author warns you: "If you decide to compile and run this, pay attention to your CPU temperatures!!! ... I take no responsibility for whatever damage that may result from running this code."
 
@@ -592,12 +576,12 @@ At this point PerfView won't show us any useful insight. It's time for the heavy
 **The General Exploration analysis** helps identify hardware issues affecting the performance. It collects a comprehensive list of CPU hardware registers available for analysis. It's a good starting point when you do hardware-level analysis. It can help you understand how efficiently your code is executing.
 It provides a neat summary view, from where you can start analyzing issues. For our latest version it produced the following summary:
 
-![VTune Amplifier General Exploration analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneGE.png)
+![VTune Amplifier General Exploration analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/vtune-ge.png)
 
 
 **Memory Access** analysis helps identify memory-related issues, like CPU cache misses, NUMA problems and bandwidth-limited accesses. It uses hardware event-based sampling to collect data for memory-related metrics: loads and stores, LLC Misses, L1/L2/L3/DRAM bound metrics, etc. The summary overview for our code looks like this:
 
-![VTune Amplifier Memory analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneMA.png)
+![VTune Amplifier Memory analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/vtune-ma.png)
 
 
 As we can see from the both analyses, our code is memory bounded. There are a lot of CPU cache misses. Let's try to understand why we have them in the first place, and then let's think how to address it. I put comments in the code to explain the CPU cache misses:
@@ -663,7 +647,7 @@ VTune also confirms that we aren't memory bound anymore.
 
 Performance optimization is an iterative process. Let's take a look at the General Exploration analysis of the latest optimized version again:
 
-![General Exploration - Divider]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneGEDivider.png)
+![General Exploration - Divider]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/vtune-ge-divider.png)
 
 We can spot that VTune Amplifier highlighted the Divider unit, it shows us that almost 50% of execution time spent there. Some arithmetic operations like division and square root take considerably longer than addition or multiplication. They performed by the DIV unit. Indeed, we have a modulo operation in the following code that calculates an index into an array of entries:
 
@@ -716,7 +700,7 @@ You can find more interesting bit twiddling hacks on [the Stanford university we
 
 ## A HUGE mistake
 
-![Profiling In A Loop]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/ThisIsFine.jpg)
+![Profiling In A Loop]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/this-is-fine.jpg)
 
 I just realized that I made a huge mistake 😞 I benchmarked and profiled a code in the tight loop like this:
 
@@ -743,13 +727,13 @@ As a side note, there's the Software based prefetching too. The compiler can iss
 
 All that justify us to go unsafe!
 
-![Unsafe]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/Unsafe.jpg)
+![Unsafe]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/unsafe.jpg)
 
 
 
 ### String traversal
 
-Since we are going unsafe, there is another interesting observation - the user agent string traversal code. The "managed" version of it looks like this:
+Since we are going unsafe, there is another interesting observation - the user agent string traversal code. The "safe" version of it looks like this:
 
 ```csharp
 for (var i = 0; i < userAgent.Length; i++)
@@ -772,7 +756,7 @@ jnle 0x7ffdeecd3d39 ; <Block 2>
 ...
 ```
 
-What do we see here? Each next instruction depends on the previous one, hence CPU cannot execute them in parallel. There's a memory access with complex address calculation. JIT could definitely do a better job, right?
+What do we see here? Each instruction depends on the previous one, hence CPU cannot execute them in parallel. There's a memory access with complex address calculation. JIT could definitely do a better job, right?
 
 So, unsafe huh?
 
@@ -806,7 +790,7 @@ jnle 0x7ffdeecd3d83 ;<Block 4>
 
 Here we have a simple memory access with no calculations. Some of the instructions can be pipelined and executed in parallel.
 
-It gives us 2 times faster traversal in a benchmark:
+It gives us 2 times faster traversal in an isolated benchmark:
 
 |          Method |        Mean |    StdDev |      Median | Scaled | Scaled-StdDev |
 |---------------- |------------ |---------- |------------ |------- |-------------- |
@@ -817,7 +801,7 @@ It gives us 2 times faster traversal in a benchmark:
 
 ### Some ugly code
 
-Having said all the above, we flatten tree into an array. We can also compact the array in a way we couldn't do in managed environment i.e. store a flag or data along or instead a reference to a node.
+Having said all the above, without going into details, we flatten tree into an array. We can also compact the array in a way we couldn't do in the managed environment i.e. store a flag/ data instead a reference to a node.
 
 ```
 [
@@ -836,7 +820,7 @@ public class AhoCorasickTreeSlim
     private readonly byte[] _data;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private unsafe byte GetKey(byte* currentNodePtr, int ind)
+    private static unsafe byte GetKey(byte* currentNodePtr, int ind)
     {
         return *(byte*)(currentNodePtr + SizeOfSize + SizeOfFailure + ind * (SizeOfKey + SizeOfNode));
     }
@@ -872,14 +856,10 @@ public class AhoCorasickTreeSlim
                     if (currentNodePtr != b) goto CheckFailure;
                 }
             }
-
         }
-
         return false;
     }
-
 }
-
 ```
 
 
@@ -889,7 +869,7 @@ We've made some improvement again. But... how to measure these changes? Unfortun
 
 As simple as selecting interesting hardware events out of hundreds of them:
 
-![Custom Analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/CustomAnalysis.png)
+![Custom Analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/custom-analysis.png)
 
 As for the real-world load profile simulation, let's do a trick: create an array that is larger than the L3 cache and traverse it before each iteration. This simple trick will clear the CPU cache. Yes, this additional code consumes almost all CPU time, so we need to measure counters for considerable amount of time to get reliable results.
 
@@ -912,18 +892,18 @@ for (var i = 0; i < 1000000; i++)
 
 Our custom "LLC misses" analysis results:
 
-![VTune LLC misses]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneLLC.png)
+![VTune LLC misses]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/vtune-llc.png)
 
 Shows that we encountered more than 7 million LLC misses during our run.
 
 After the optimizations:
 
-![VTune LLC misses after]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/VTuneLLCAfter.png)
+![VTune LLC misses after]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/vtune-llc-after.png)
 
 Shows only 1.5 million LLC misses. We managed to reduce number of LLC misses by more than 4 times! Which is amazing! Number of CPU clocks spent in the code also dropped by 2 times. I think it's safe to say that we improved performance in the wild by 2 times using the latest optimization.
 
 ## Summary
 
-To summarize the journey, we improved the performance by probably more than 20 times at the end. We used various techniques: from a simple API change to re-implementing a BCL data structure, from an advanced data structure to a bit hack, from admitting our own mistakes to making the algorithm more CPU-friendly.
+To summarize the journey, we improved the performance by probably more than 20 times at the end. We used various techniques: from a simple API change to re-implementing the Dictionary data structure, from the Open addressing Hash table to the modulo bit hack, from admitting our own mistakes to making the algorithm more CPU-friendly.
 
-What can we do next? Obviously, further compacting the data structure will improve the performance because we simply need to load less data. We can find the perfect hash function to have less hash collisions. We can do it programmatically as we know our data beforehand. If we study the data we find out that it's ASCII only and most of the patterns consist of English characters with few exceptions. Therefore we can create bit masks for them and use bitwise operations. To evolve it further we could use SIMD (Single instruction, multiple data) instructions and check few input characters at once. But all that is another story.
+What can we do next? Obviously, compacting the data structure even more will improve the performance because we would simply load less data. We can find the perfect hash function to have less hash collisions. We can do it programmatically as we know our data beforehand. If we study the data we find out that it's ASCII only and most of the patterns consist of English characters with few exceptions. Therefore we can create bit masks for them and use bitwise operations. To evolve it further we could use SIMD (Single instruction, multiple data) instructions and check few input characters at once. But all that is another story.
