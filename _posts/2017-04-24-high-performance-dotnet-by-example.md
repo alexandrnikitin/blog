@@ -53,7 +53,7 @@ But, surprisingly, not all bots are bad, and some of them are even vital for the
 
 We won't cover black bots because it is a huge topic with sophisticated analysis and Machine learning algorithms. We will focus on the white and grey bots that identify themselves as such.
 
-There's no reason to show a banner for a bot, right? It's pointless, waste of resources and money. What's the most important is that clients don't want to pay for that and our goal is to filter all bots out. There are few ways to identify bot traffic. One of the ways that became a standard in the industry is to use a defined list of User Agent strings. Let's take a look at an example.
+There's no reason to show a banner for a bot, right? It's pointless, waste of resources and money. What's the most important is that clients don't want to pay for that and our goal is to filter all bots out. There are several ways to identify bot traffic, e.g., IP addresses, behavior analysis, honeypots, etc. One of the ways that became a standard in the industry is to use a defined list of User Agent strings. Advertising companies are required to have it to be compliant to standards. Let's take a look at an example.
 
 My browser's user agent string looks like this at the moment: `Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36` Yes, I use Chrome on Windows 10.
 
