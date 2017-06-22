@@ -864,9 +864,7 @@ public class AhoCorasickTreeSlim
 
 ### How to measure?
 
-We've made some improvement again. But... how to measure these changes? Unfortunately we are stuck in the situation where microbenchmarking doesn't show us the real picture and became useless. Also it's quite difficult to measure and profile changes and their impact in the wild. The only way is to employ CPU hardware counters. We already identified the bottleneck as LLC (last-level cache) misses. We are going to monitor only this counter via VTune Amplifier Custom analysis. Intel VTune Amplifier allow us
-
-As simple as selecting interesting hardware events out of hundreds of them:
+We've made some improvement again. But... how to measure these changes? Unfortunately we are stuck in the situation where microbenchmarking doesn't show us the real picture and became useless. Also it's quite difficult to measure and profile changes and their impact in the wild. The only way is to employ CPU hardware counters. We already identified the bottleneck as LLC (last-level cache) misses. We are going to monitor only this hardware counter via VTune Amplifier Custom analysis. It's as simple as selecting interesting hardware events out of hundreds of them:
 
 ![Custom Analysis]({{ site.url }}{{ site.baseurl }}/images/high-performance-dotnet-by-example/custom-analysis.png)
 
