@@ -3,7 +3,7 @@ layout: single
 title: "Transparent Hugepages: measuring the performance impact"
 date: 2017-08-18
 categories: [Linux]
-excerpt: ""
+excerpt: "Explains Transparent Hugepages in a nutshell, techniques that can be used to measure the performance impact, shows the effect on a real-world application."
 tags: [High-performance, Linux, JVM]
 comments: true
 share: true
