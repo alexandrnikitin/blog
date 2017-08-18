@@ -16,19 +16,19 @@ TL;DR This post explains Transparent Hugepages (THP) in a nutshell, describes te
 
 The post was inspired by [a thread about Transparent Hugepages]( https://groups.google.com/forum/#!topic/mechanical-sympathy/sljzehnCNZU) on the Mechanical Sympathy group. The thread walks through the pitfalls, performance numbers and current state in the latest kernel versions. A lot of useful information is there. In general, you can find many recommendations on the Internet. Many of them tell you to disable THP, e.g. [Oracle Database](http://docs.oracle.com/cd/E11882_01/install.112/e47689/pre_install.htm#LADBI1519), [MongoDB](https://docs.mongodb.com/manual/tutorial/transparent-huge-pages/), [Couchbase](https://developer.couchbase.com/documentation/server/current/install/thp-disable.html), [MemSQL](https://help.memsql.com/hc/en-us/articles/115002948663-Disable-Transparent-Huge-Pages), [NuoDB ](http://doc.nuodb.com/Latest/Content/Note-About-%20Using-Transparent-Huge-Pages.htm). Few of them utilize the feature, e.g. [PostgreSQL]( https://www.postgresql.org/docs/9.6/static/kernel-resources.html#LINUX-HUGE-PAGES) (hugetlbpage feature, not THP) and [Vertica](https://my.vertica.com/docs/7.2.x/HTML/index.htm#Authoring/InstallationGuide/BeforeYouInstall/transparenthugepages.htm). There are quite a few stories telling how people fight a system freeze and solved it disabling the THP feature. [1](https://www.perforce.com/blog/tales-field-taming-transparent-huge-pages-linux), [2](https://community.microfocus.com/borland/managetrack/accurev/w/accurev_knowledge_base/27749/recommendation-to-disable-linux-kernel-transparent-hugepages-thp-setting-for-performance-improvement), [3](http://structureddata.org/2012/06/18/linux-6-transparent-huge-pages-and-hadoop-workloads/), [4](https://blogs.oracle.com/linux/performance-issues-with-transparent-huge-pages-thp), [5](https://dzone.com/articles/why-tokudb-hates-transparent), [6](https://engineering.linkedin.com/performance/optimizing-linux-memory-management-low-latency-high-throughput-databases). All those stories lead to distorted view and preconception that the feature is harmful.
 
-Unfortunately, I couldn't find any post that measures or shows how to measure the impact and consequences of enabling/ disabling the feature. That's what this post is supposed to address.
+Unfortunately, I couldn't find any post that measures or shows how to measure the impact and consequences of enabling/ disabling the feature. This is what this post is supposed to address.
 
-## Transparent Hugepage in a nutshell
+## Transparent Hugepages in a nutshell
 
-Almost all applications and OSes run in virtual memory. Virtual memory is mapped into physical memory. The mapping is managed by an OS maintaining [the page tables data structure](https://en.wikipedia.org/wiki/Page_table) in RAM. The address translation logic (page table walking) is implemented by [the CPU's memory management unit (MMU)](https://en.wikipedia.org/wiki/Memory_management_unit). The MMU also has a cache of recently used mappings. This cache is called the Translation lookaside buffer (TLB).
+Almost all applications and OSes run in virtual memory. Virtual memory is mapped into physical memory. The mapping is managed by an OS maintaining [the page tables data structure](https://en.wikipedia.org/wiki/Page_table) in RAM. The address translation logic (page table walking) is implemented by [the CPU's memory management unit (MMU)](https://en.wikipedia.org/wiki/Memory_management_unit). The MMU also has a cache of recently used pages. This cache is called the Translation lookaside buffer (TLB).
 
-"When a virtual address needs to be translated into a physical address, the TLB is searched first. If a match is found (a TLB hit), the physical address is returned and memory access can continue. However, if there is no match (called a TLB miss), the MMU will typically look up the address mapping in the page table to see whether a mapping exists." The page table walk is expensive because it may require multiple memory accesses (they can hit the CPU L1/L2/L3 caches though). On the other side, the TLB cache size is limited and typically can hold several hundred pages.
+"When a virtual address needs to be translated into a physical address, the TLB is searched first. If a match is found (a TLB hit), the physical address is returned and memory access can continue. However, if there is no match (called a TLB miss), the MMU will typically look up the address mapping in the page table to see whether a mapping exists." The page table walk is expensive because it may require multiple memory accesses (they may hit the CPU L1/L2/L3 caches though). On the other side, the TLB cache size is limited and typically can hold several hundred pages.
 
-OSes manage virtual memory using pages (contiguous block of memory). Typically, the size of a memory page is 4 KB. 1 GB of memory is 256 000 pages; 128 GB is 32 768 000 pages. Obviously TLB cache can't fit all of the pages and performance suffers from cache misses. There are two main ways to improve it. The first one is to increase TLB size, which is expensive and won't help significantly. Another one is to increase the page size and therefore we have less pages to map. Modern OSes and CPUs support large 2 MB or even 1 GB pages. Using large 2 MB pages, 128 GB becomes just 64 000 pages.
+OSes manage virtual memory using pages (contiguous block of memory). Typically, the size of a memory page is 4 KB. 1 GB of memory is 256 000 pages; 128 GB is 32 768 000 pages. Obviously TLB cache can't fit all of the pages and performance suffers from cache misses. There are two main ways to improve it. The first one is to increase TLB size, which is expensive and won't help significantly. Another one is to increase the page size and therefore have less pages to map. Modern OSes and CPUs support large 2 MB and even 1 GB pages. Using large 2 MB pages, 128 GB of memory becomes just 64 000 pages.
 
-That's the reason there is Linux Transparent Hugepage Support in Linux. It's an optimization! It manages large pages automatically and transparently for applications. The benefits are pretty obvious: no changes on application side; it reduces the number of TLB misses; page table walking becomes cheaper. The feature logically can be divided into two parts: allocation and maintenance. The THP takes the regular ("higher-order") memory allocation path and it requires that the OS be able to find contiguous and aligned block of memory. It suffers from the same issues as the regular pages, namely fragmentation. If the OS can't find a contiguous block of memory, it will try to compact, reclaim or page out other pages. That process could cause latency spikes (up to seconds). The second part is maintenance. Even if an application touches just 1 byte of memory, it will receive 2 MB large page. This is obviously a waste of memory. So there's a background kernel thread called "khugepaged". It scans pages and tries to defragment and collapse them into one huge page.
+That's the reason there is Linux Transparent Hugepage Support in Linux. It's an optimization! It manages large pages automatically and transparently for applications. The benefits are pretty obvious: no changes required on application side; it reduces the number of TLB misses; page table walking becomes cheaper. The feature logically can be divided into two parts: allocation and maintenance. The THP takes the regular ("higher-order") memory allocation path and it requires that the OS be able to find contiguous and aligned block of memory. It suffers from the same issues as the regular pages, namely fragmentation. If the OS can't find a contiguous block of memory, it will try to compact, reclaim or page out other pages. That process could cause latency spikes (up to seconds). The second part is maintenance. Even if an application touches just 1 byte of memory, it will consume whole 2 MB large page. This is obviously a waste of memory. So there's a background kernel thread called "khugepaged". It scans pages and tries to defragment and collapse them into one huge page.
 
-The best place to read about Transparent Hugepage Support is the official documentation on [the Linux Kernel website](https://www.kernel.org/doc/Documentation/vm/transhuge.txt) The feature has several settings and flags that affect its behavior and they evolve with the Linux kernel.
+Another pitfall lays in large page splitting, not all parts of the OS work with large pages, e.g. swap. The OS splits large pages into regular ones for them. The best place to read about Transparent Hugepage Support is the official documentation on [the Linux Kernel website](https://www.kernel.org/doc/Documentation/vm/transhuge.txt) The feature has several settings and flags that affect its behavior and they evolve with the Linux kernel.
 
 ## How to measure?
 
@@ -72,7 +72,7 @@ If we take a look at the TLB related counters, we could find the following most 
 | PAGE_WALKER_LOADS.DTLB_MEMORY |	Number of DTLB page walker loads from memory. | BCH | 18H |
 | PAGE_WALKER_LOADS.ITLB_MEMORY |	Number of ITLB page walker loads from memory. | BCH | 28H |
 
-The event numbers and umask values are CPU specific; the listed ones are for Haswell microarchitecture. You need to look for codes for your CPU microarchitecture.
+Perf supports the `*MISS_CAUSES_A_WALK` counters via aliases. We need to use event numbers for others. The CPU event numbers and umask values are CPU specific; the listed above are for the Haswell microarchitecture. You need to look for codes for your CPU.
 
 One of the key metrics is the number of CPU cycles spent in the page table walking:
 
@@ -88,7 +88,7 @@ One of the key metrics is the number of CPU cycles spent in the page table walki
 ...
 ```
 
-Another important metric is the number of main memory reads caused by TLB miss; those reads miss the CPU caches and quite expensive:
+Another important metric is the number of main memory reads caused by TLB miss; those reads miss the CPU caches hence quite expensive:
 
 ```
 [root@PRCAPISV0003L01 ~]# perf stat -e cache-misses \
@@ -111,7 +111,7 @@ The first function that is interesting for us is [`__alloc_pages_slowpath`](http
 
 The second interesting function is   [`khugepaged_scan_mm_slot`](http://elixir.free-electrons.com/linux/v3.10/source/mm/huge_memory.c#L2466). It is executed by the background "khugepaged" kernel thread. It scans hugepages and tries to collapse them into one.
 
-I use the following SystemTap script to measure a function execution latency. It stores all execution timings in microseconds and periodically outputs a logarithmic histogram. It consumes few megabytes per hour depending on number of executions. The first argument is a probe point, the second one is number of milliseconds to periodically print statistics.
+I use a SystemTap script to measure a function execution latency. The script stores all execution timings in microseconds and periodically outputs a logarithmic histogram. It consumes few megabytes per hour depending on number of executions. The first argument is a probe point, the second one is number of milliseconds to periodically print statistics.
 
 ```
 #! /usr/bin/env stap
@@ -169,7 +169,7 @@ You can read more about it in [the official documentation](http://elixir.free-el
 
 ## JVM
 
-JVM supports Transparent Hugepages via the "-XX:+UseTransparentHugePages" flag. Although they warn about possible performance problems:
+JVM supports Transparent Hugepages via the `-XX:+UseTransparentHugePages` flag. Although they warn about possible performance problems:
 
 >-XX:+UseTransparentHugePages
 On Linux, enables the use of large pages that can dynamically grow or shrink. This option is disabled by default. You may encounter performance problems with transparent huge pages as the OS moves other pages around to create huge pages; this option is made available for experimentation.
@@ -181,9 +181,9 @@ Enables touching of every page on the Java heap during JVM initialization. This 
 
 [Aleksey Shipilёv](http://twitter.com/shipilev) shows performance impact in microbenchmarks in [his "JVM Anatomy Park #2: Transparent Huge Pages" blog post](https://shipilev.net/jvm-anatomy-park/2-transparent-huge-pages/).
 
-## A real world case
+## A real-world case: High-load JVM
 
-Let's take a look at how Transparent Hugepages affect a real-world application. Given a JVM application: a high-load TCP server based on [netty](https://netty.io/). The server receives up to 100K requests per second, parses them, performs a network database call for each one, then does quite a lot of computations and returns a response back. The JVM application has 200 GB heap. The measurements were done on production servers and production load. Servers were not overloaded and received ~40% of maximum number of requests they can handle.
+Let's take a look at how Transparent Hugepages affect a real-world application. Given a JVM application: a high-load TCP server based on [netty](https://netty.io/). The server receives up to 100K requests per second, parses them, performs a network database call for each one, then does quite a lot of computations and returns a response back. The JVM application has 200 GB heap. The measurements were done on production servers and production load. Servers were not overloaded and received a half of the maximum number of requests they can handle.
 
 ### Transparent Hugepages is off
 
@@ -194,7 +194,7 @@ echo never > /sys/kernel/mm/transparent_hugepage/enabled
 echo never > /sys/kernel/mm/transparent_hugepage/defrag
 ```
 
-The first thing to measure is the number of TLB misses:
+The first thing to measure is the number of TLB misses. We have ~130 million of TLB misses. Miss/hit rate is 1% (which doesn't look too bad at first). The numbers:
 
 ```
 [~]# perf stat -e dTLB-loads,dTLB-load-misses,iTLB-load-misses,dTLB-store-misses -a -I 1000
@@ -206,8 +206,6 @@ The first thing to measure is the number of TLB misses:
     10.007352573         10,955,696      dTLB-store-misses                                             
 ...
 ```
-
-We have ~130 million of TLB misses. Miss/hit rate is 1%. (which doesn't look too bad at first)
 
 Let's take a look how much those misses cost for the CPU:
 
@@ -224,10 +222,10 @@ Let's take a look how much those misses cost for the CPU:
 ...
 ```
 
-Yes, you see it right. More than 10% of CPU cycles spent doing the page table walking.
+Yes, you see it right! **More than 10%** of CPU cycles were spent doing the page table walking.
 
 
-The following counters show us that we have 1 million RAM memory reads caused by TLB misses (which can be up to 100 ns each)
+The following counters show us that we have 1 million RAM memory reads caused by TLB misses (which can be up to 100 ns each):
 
 ```
 [~]# perf stat -e cpu/event=0xbc,umask=0x18,name=dreads/ \
@@ -240,7 +238,7 @@ The following counters show us that we have 1 million RAM memory reads caused by
 ...
 ```
 
-All of the above numbers are good to know, but they are quite "synthetic". The most important metric for an application developer is the application metrics. Let's take a look at the application end-to-end latency metrics. Here are the application latency in microseconds gathered for a dozen minutes:
+All of the above numbers are good to know, but they are quite "synthetic". The most important metrics for an application developer are the application metrics. Let's take a look at the application end-to-end latency metrics. Here are the application latency in microseconds gathered for a few minutes:
 
 ```
   "max" : 16414.672,
@@ -262,9 +260,9 @@ echo always > /sys/kernel/mm/transparent_hugepage/enabled
 echo always > /sys/kernel/mm/transparent_hugepage/defrag
 ```
 
-And launch the JVM with `-XX:+UseTransparentHugePages -XX:+AlwaysPreTouch` flags.
+And launch the JVM with the `-XX:+UseTransparentHugePages -XX:+AlwaysPreTouch` flags.
 
-The quantitative metrics shows us that the number of TLB misses dropped by 6 times from ~130 million to ~20 million. Miss/hit rate dropped from 1% to 0.15%. Here's the numbers:
+The quantitative metrics shows us that the number of TLB misses dropped by 6 times from ~130 million to ~20 million. Miss/hit rate dropped from 1% to 0.15%. Here are the numbers:
 
 ```
 [~]# perf stat -e dTLB-loads,dTLB-load-misses,iTLB-load-misses,dTLB-store-misses -a -I 1000
@@ -275,7 +273,7 @@ The quantitative metrics shows us that the number of TLB misses dropped by 6 tim
      1.002351984          1,235,060      dTLB-store-misses                                            
 ```
 
-The CPU cycles spent in the page table walking also dropped by 5 times from ~6.7B to ~1.3B. We spend only 2% walking the page table walking. Numbers below:
+The CPU cycles spent in the page table walking also dropped by 5 times from ~6.7B to ~1.3B. We spend only 2% of CPU time walking the page table. Numbers below:
 
 ```
 [~]# perf stat -e cycles \
@@ -303,7 +301,7 @@ And the RAM reads also dropped from 1 million to 350K:
 ...
 ```
 
-Again, all the above numbers look good but the most important fact is how they affect our application. Here's the latency numbers:
+Again, all the above numbers look good but the most important fact is how they affect our application. Here are the latency numbers:
 
 ```
   "max" : 16028.281,
@@ -348,7 +346,7 @@ value |-------------------------------------------------- count
 16384 |                                                      0
 ```
 
-Another important kernel function is `__alloc_pages_slowpath`. It also can cause latency spikes if can't find contiguous block of memory. The probing histogram looks good, the maximum allocation time was 288 microsecond. Having it running for hours or even days gives us some confidence that we won't run into a spike.
+Another important kernel function is `__alloc_pages_slowpath`. It also can cause latency spikes if can't find contiguous block of memory. The probing histogram looks good, the maximum allocation time was 288 microsecond. Having it running for hours or even days gives us some confidence that we won't run into a huge spike.
 
 ```
 [~]# ./func_time_stats.stp 'kernel.function("__alloc_pages_slowpath")' 60000 -o alloc_pages_slowpath.log
@@ -373,4 +371,4 @@ value |-------------------------------------------------- count
 
 ## Conclusion
 
-Do not blindly follow any recommendation on the Internet, please! Measure, measure and measure again! Transparent Hugepages Support affects performance. The performance impact can be significant for some application.
+Do not blindly follow any recommendation on the Internet, please! Measure, measure and measure again! Transparent Hugepages Support affects performance. The performance and latency impact can be significant for some application. Measure it!
