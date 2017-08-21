@@ -263,7 +263,7 @@ The comparison begins! Let's turn the THP on:
 
 ```
 echo always > /sys/kernel/mm/transparent_hugepage/enabled
-echo always > /sys/kernel/mm/transparent_hugepage/defrag
+echo always > /sys/kernel/mm/transparent_hugepage/defrag # consider other options too
 ```
 
 And launch the JVM with the `-XX:+UseTransparentHugePages -XX:+UseLargePagesInMetaspace -XX:+AlwaysPreTouch` flags.
