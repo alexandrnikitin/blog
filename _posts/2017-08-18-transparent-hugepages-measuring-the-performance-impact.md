@@ -175,6 +175,11 @@ JVM supports Transparent Hugepages via the `-XX:+UseTransparentHugePages` flag. 
 >-XX:+UseTransparentHugePages
 On Linux, enables the use of large pages that can dynamically grow or shrink. This option is disabled by default. You may encounter performance problems with transparent huge pages as the OS moves other pages around to create huge pages; this option is made available for experimentation.
 
+It is worth to enable the use of large pages for Metaspace too:
+
+>-XX:+UseLargePagesInMetaspace
+Use large page memory in metaspace. Only used if UseLargePages is enabled.
+
 It may be a good idea to use hugepages with `-XX:+AlwaysPreTouch` options. It preallocates all physical memory used by the heap, hence avoids any further overhead for page initialization or compaction. But it takes more time to initialize the JVM.
 
 >-XX:+AlwaysPreTouch
@@ -261,7 +266,7 @@ echo always > /sys/kernel/mm/transparent_hugepage/enabled
 echo always > /sys/kernel/mm/transparent_hugepage/defrag
 ```
 
-And launch the JVM with the `-XX:+UseTransparentHugePages -XX:+AlwaysPreTouch` flags.
+And launch the JVM with the `-XX:+UseTransparentHugePages -XX:+UseLargePagesInMetaspace -XX:+AlwaysPreTouch` flags.
 
 The quantitative metrics shows us that the number of TLB misses dropped by 6 times from ~130 million to ~20 million. Miss/hit rate dropped from 1% to 0.15%. Here are the numbers:
 
